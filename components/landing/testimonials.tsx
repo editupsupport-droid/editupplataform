@@ -1,38 +1,37 @@
 import { Card, CardContent } from "@/components/ui/card"
 import { Star } from "lucide-react"
-
-const testimonials = [
-  {
-    name: "Lucas Oliveira",
-    role: "Editor Freelancer",
-    content: "A calculadora de preços mudou minha vida! Antes eu não sabia quanto cobrar, agora tenho certeza que estou precificando corretamente.",
-    rating: 5,
-  },
-  {
-    name: "Mariana Costa",
-    role: "Criadora de Conteúdo",
-    content: "Os presets do pack são incríveis! Consegui dobrar minha velocidade de edição e a qualidade dos meus vídeos melhorou muito.",
-    rating: 5,
-  },
-  {
-    name: "Rafael Santos",
-    role: "Editor de Reels",
-    content: "O curso de prospecção no Instagram foi um divisor de águas. Em 2 meses consegui 15 novos clientes fixos.",
-    rating: 5,
-  },
-]
-
 export function Testimonials() {
+  const testimonials = [
+    {
+      name: "Lucas Oliveira",
+      role: "Freelance Editor",
+      content: "The pricing calculator changed how I charge. I finally have confidence in my rates.",
+      rating: 5,
+    },
+    {
+      name: "Mariana Costa",
+      role: "Content Creator",
+      content: "The preset pack is fantastic. My editing speed doubled and the final quality improved a lot.",
+      rating: 5,
+    },
+    {
+      name: "Rafael Santos",
+      role: "Reels Editor",
+      content: "The Instagram outreach course was a turning point. I landed 15 recurring clients in two months.",
+      rating: 5,
+    },
+  ]
+
   return (
     <section id="testimonials" className="border-t border-border/50 bg-card/50 py-20 lg:py-32">
       <div className="mx-auto max-w-7xl px-4 lg:px-8">
         <div className="mx-auto mb-16 max-w-2xl text-center">
           <h2 className="mb-4 text-3xl font-bold text-foreground md:text-4xl">
-            O que nossos{" "}
-            <span className="text-primary">editores</span> dizem
+            What our{" "}
+            <span className="text-primary">editors</span> say
           </h2>
           <p className="text-muted-foreground">
-            Veja como a Astherisch está transformando a carreira de editores em todo o Brasil.
+            See how Astherisch is helping editors level up their career and positioning.
           </p>
         </div>
 

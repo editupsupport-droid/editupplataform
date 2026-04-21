@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { planMeets } from "@/lib/app-data"
 import { getStripe, stripePrices } from "@/lib/stripe"
 
 export const runtime = "nodejs"
@@ -16,6 +17,31 @@ export async function POST(request: NextRequest) {
 
     if (!priceId) {
       return NextResponse.json({ error: "Plano Stripe não configurado." }, { status: 400 })
+    }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      return NextResponse.json({ error: "Supabase não configurado." }, { status: 500 })
+    }
+
+    const profileResponse = await fetch(
+      `${supabaseUrl}/rest/v1/profiles?id=eq.${userId}&select=plan&limit=1`,
+      {
+        headers: {
+          apikey: serviceRoleKey,
+          Authorization: `Bearer ${serviceRoleKey}`,
+        },
+        cache: "no-store",
+      }
+    )
+
+    const profiles = (await profileResponse.json().catch(() => [])) as Array<{ plan?: "free" | "starter" | "essential" }>
+    const currentPlan = profiles[0]?.plan ?? "free"
+
+    if (planMeets(currentPlan, plan)) {
+      return NextResponse.json({ error: "Esse plano ja esta liberado para sua conta." }, { status: 400 })
     }
 
     const stripe = getStripe()

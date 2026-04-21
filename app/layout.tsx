@@ -12,8 +12,8 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: 'Astherisch - Eleve sua Carreira de Editor',
-  description: 'Plataforma completa para editores de vídeo: calculadora de preços, packs de edição e cursos exclusivos.',
+  title: 'Astherisch - Level Up Your Editing Career',
+  description: 'A complete platform for video editors with pricing tools, editing packs, portfolio pages, and exclusive resources.',
   metadataBase: new URL(getSiteUrl()),
   icons: {
     icon: '/favicon.svg',

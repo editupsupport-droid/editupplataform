@@ -12,6 +12,7 @@ import {
   EDIT_TOOL_LABELS,
   parseBannerAssets,
   parseVideoUrls,
+  PROFILE_LANGUAGE_LABELS,
   VIDEO_STYLE_LABELS,
 } from "@/lib/app-data"
 
@@ -96,11 +97,11 @@ export default function PublicProfilePage() {
           <CardContent className="space-y-4 p-8 text-center">
             <h1 className="text-2xl font-bold text-foreground">Perfil não encontrado</h1>
             <p className="text-muted-foreground">
-              Esse link profissional ainda não existe ou não foi publicado.
+              Este link profissional ainda não existe ou ainda não foi publicado.
             </p>
             <Link href="/">
               <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-                Voltar para o início
+                Voltar para a home
               </Button>
             </Link>
           </CardContent>
@@ -148,6 +149,7 @@ export default function PublicProfilePage() {
                   <h1 className="text-3xl font-bold text-foreground lg:text-4xl">{normalizedProfile.fullName}</h1>
                   <p className="text-lg text-muted-foreground">{normalizedProfile.professionalTitle}</p>
                   {normalizedProfile.location && <p className="mt-1 text-sm text-muted-foreground">{normalizedProfile.location}</p>}
+                  <p className="mt-1 text-sm text-muted-foreground">{PROFILE_LANGUAGE_LABELS[normalizedProfile.language]}</p>
                 </div>
               </div>
             </div>
@@ -159,7 +161,7 @@ export default function PublicProfilePage() {
                 <CardContent className="space-y-4 p-6">
                   <h2 className="text-lg font-semibold text-foreground">Sobre</h2>
                   <p className="text-sm leading-6 text-muted-foreground">
-                    {normalizedProfile.bio || "Esse editor ainda não adicionou uma biografia ao perfil profissional."}
+                    {normalizedProfile.bio || "Este editor ainda não adicionou uma bio profissional."}
                   </p>
                 </CardContent>
               </Card>
@@ -203,7 +205,7 @@ export default function PublicProfilePage() {
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">
-                      Nenhum vídeo foi adicionado por enquanto.
+                      Nenhum vídeo foi adicionado ainda.
                     </p>
                   )}
                 </CardContent>
@@ -218,7 +220,7 @@ export default function PublicProfilePage() {
                     {normalizedProfile.editTools.length > 0 ? (
                       normalizedProfile.editTools.map((tool) => <Badge key={tool} variant="secondary">{EDIT_TOOL_LABELS[tool as keyof typeof EDIT_TOOL_LABELS]}</Badge>)
                     ) : (
-                      <span className="text-sm text-muted-foreground">Ferramentas não informadas.</span>
+                      <span className="text-sm text-muted-foreground">Nenhuma ferramenta listada ainda.</span>
                     )}
                   </div>
                 </CardContent>
@@ -231,7 +233,7 @@ export default function PublicProfilePage() {
                     {normalizedProfile.videoStyles.length > 0 ? (
                       normalizedProfile.videoStyles.map((style) => <Badge key={style} variant="secondary">{VIDEO_STYLE_LABELS[style as keyof typeof VIDEO_STYLE_LABELS]}</Badge>)
                     ) : (
-                      <span className="text-sm text-muted-foreground">Estilo não informado.</span>
+                      <span className="text-sm text-muted-foreground">Nenhum estilo listado ainda.</span>
                     )}
                   </div>
                 </CardContent>

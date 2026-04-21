@@ -1,5 +1,6 @@
 import { headers } from "next/headers"
 import { NextResponse } from "next/server"
+import { planMeets, type PlanId } from "@/lib/app-data"
 import { getStripe } from "@/lib/stripe"
 
 export const runtime = "nodejs"
@@ -32,6 +33,20 @@ export async function POST(request: Request) {
         const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
         if (supabaseUrl && serviceRoleKey) {
+          const profileResponse = await fetch(
+            `${supabaseUrl}/rest/v1/profiles?id=eq.${userId}&select=plan&limit=1`,
+            {
+              headers: {
+                apikey: serviceRoleKey,
+                Authorization: `Bearer ${serviceRoleKey}`,
+              },
+              cache: "no-store",
+            }
+          )
+          const profiles = (await profileResponse.json().catch(() => [])) as Array<{ plan?: PlanId }>
+          const currentPlan = profiles[0]?.plan ?? "free"
+          const nextPlan = planMeets(currentPlan, plan as PlanId) ? currentPlan : (plan as PlanId)
+
           await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${userId}`, {
             method: "PATCH",
             headers: {
@@ -40,7 +55,7 @@ export async function POST(request: Request) {
               "Content-Type": "application/json",
               Prefer: "return=minimal",
             },
-            body: JSON.stringify({ plan }),
+            body: JSON.stringify({ plan: nextPlan }),
           })
         }
       }

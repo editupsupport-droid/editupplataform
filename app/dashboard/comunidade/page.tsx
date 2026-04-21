@@ -5,13 +5,13 @@ import { MessageCircleMore, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
-export default function ComunidadePage() {
+export default function CommunityPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Comunidade Exclusiva</h1>
+        <h1 className="text-3xl font-bold text-foreground">Private Community</h1>
         <p className="mt-1 text-muted-foreground">
-          Entre nos grupos oficiais para networking, suporte, feedbacks e oportunidades.
+          Join the official groups for networking, support, feedback, and opportunities.
         </p>
       </div>
 
@@ -20,16 +20,16 @@ export default function ComunidadePage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-foreground">
               <Users className="h-5 w-5 text-primary" />
-              Comunidade Discord
+              Discord Community
             </CardTitle>
             <CardDescription className="text-muted-foreground">
-              Canal principal para networking, trocas com outros editores e avisos importantes.
+              Main channel for networking, editor conversations, and important announcements.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Link href="https://discord.gg/P4x7DKEGnJ" target="_blank">
               <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
-                Entrar no Discord
+                Join Discord
               </Button>
             </Link>
           </CardContent>
@@ -39,16 +39,16 @@ export default function ComunidadePage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-foreground">
               <MessageCircleMore className="h-5 w-5 text-primary" />
-              Grupo WhatsApp
+              WhatsApp Group
             </CardTitle>
             <CardDescription className="text-muted-foreground">
-              Grupo para avisos rápidos, networking e acompanhamento mais próximo.
+              Group for quick updates, networking, and closer follow-up.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Link href="https://chat.whatsapp.com/GCyIOZBGhYKAJ6sLvpYEUf?mode=gi_t" target="_blank">
               <Button variant="outline" className="w-full border-border">
-                Entrar no WhatsApp
+                Join WhatsApp
               </Button>
             </Link>
           </CardContent>

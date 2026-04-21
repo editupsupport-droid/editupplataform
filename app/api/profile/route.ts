@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
+import { requireAuthenticatedUser } from "@/lib/supabase-server"
 
 export const runtime = "nodejs"
+const profileColumns =
+  "id,email,full_name,professional_title,bio,location,slug,banner_url,video_url,edit_tools,video_styles,contact_method,contact_value,plan,can_publish_jobs,created_at,updated_at"
 
 type ProfilePayload = {
-  userId?: string
   fullName?: string
   professionalTitle?: string
   bio?: string
   location?: string
+  language?: "en" | "pt-BR" | "es"
   slug?: string
   bannerUrl?: string
   photoUrl?: string
@@ -18,13 +21,6 @@ type ProfilePayload = {
   contactValue?: string
 }
 
-const jsonHeaders = (serviceRoleKey: string) => ({
-  apikey: serviceRoleKey,
-  Authorization: `Bearer ${serviceRoleKey}`,
-  "Content-Type": "application/json",
-  Prefer: "return=representation",
-})
-
 const serializeVideoUrls = (videoUrls: string[] = []) => {
   const normalized = videoUrls.map((url) => url.trim()).filter(Boolean)
   if (normalized.length <= 1) {
@@ -34,68 +30,49 @@ const serializeVideoUrls = (videoUrls: string[] = []) => {
   return JSON.stringify(normalized)
 }
 
-const serializeBannerAssets = (bannerUrl = "", photoUrl = "") => {
-  if (!photoUrl.trim()) {
+const serializeBannerAssets = (bannerUrl = "", photoUrl = "", language: ProfilePayload["language"] = "pt-BR") => {
+  if (!photoUrl.trim() && language === "pt-BR") {
     return bannerUrl.trim()
   }
 
   return JSON.stringify({
     bannerUrl: bannerUrl.trim(),
     photoUrl: photoUrl.trim(),
+    language,
   })
 }
 
 export async function POST(request: NextRequest) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    return NextResponse.json({ error: "Supabase não configurado." }, { status: 500 })
-  }
-
   try {
+    const { supabase, user } = await requireAuthenticatedUser(request)
     const body = (await request.json()) as ProfilePayload
 
-    if (!body.userId) {
-      return NextResponse.json({ error: "Usuário inválido." }, { status: 400 })
-    }
-
-    const response = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${body.userId}`, {
-      method: "PATCH",
-      headers: jsonHeaders(serviceRoleKey),
-      body: JSON.stringify({
+    const { data, error } = await supabase
+      .from("profiles")
+      .update({
         full_name: body.fullName?.trim() ?? "",
         professional_title: body.professionalTitle?.trim() ?? "",
         bio: body.bio?.trim() ?? "",
         location: body.location?.trim() ?? "",
         slug: body.slug?.trim() ?? "",
-        banner_url: serializeBannerAssets(body.bannerUrl, body.photoUrl),
+        banner_url: serializeBannerAssets(body.bannerUrl, body.photoUrl, body.language),
         video_url: serializeVideoUrls(body.videoUrls),
         edit_tools: Array.isArray(body.editTools) ? body.editTools : [],
         video_styles: Array.isArray(body.videoStyles) ? body.videoStyles : [],
         contact_method: body.contactMethod ?? "email",
         contact_value: body.contactValue?.trim() ?? "",
-      }),
-    })
+      })
+      .eq("id", user.id)
+      .select(profileColumns)
+      .single()
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      return NextResponse.json(
-        { error: errorText || "Não foi possível salvar o perfil." },
-        { status: response.status }
-      )
+    if (error || !data) {
+      return NextResponse.json({ error: error?.message ?? "Não foi possível salvar o perfil." }, { status: 400 })
     }
 
-    const rows = (await response.json()) as Array<Record<string, unknown>>
-    const updatedProfile = rows[0]
-
-    if (!updatedProfile) {
-      return NextResponse.json({ error: "Perfil não encontrado para atualização." }, { status: 404 })
-    }
-
-    return NextResponse.json({ profile: updatedProfile })
+    return NextResponse.json({ profile: data })
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Erro ao salvar perfil."
-    return NextResponse.json({ error: message }, { status: 500 })
+    const message = error instanceof Error ? error.message : "Não foi possível salvar o perfil."
+    return NextResponse.json({ error: message }, { status: message === "Não autenticado." ? 401 : 500 })
   }
 }

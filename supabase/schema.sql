@@ -68,6 +68,8 @@ create table if not exists public.board_cards (
   description text default '',
   column_id text not null default 'entrada',
   position integer not null default 0,
+  approval_token_hash text,
+  approval_expires_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -171,11 +173,6 @@ drop policy if exists "profiles_insert_own" on public.profiles;
 create policy "profiles_insert_own"
 on public.profiles for insert
 with check (auth.uid() = id);
-
-drop policy if exists "public_profile_visible" on public.profiles;
-create policy "public_profile_visible"
-on public.profiles for select
-using (slug is not null);
 
 drop policy if exists "job_posts_visible_to_authenticated" on public.job_posts;
 create policy "job_posts_visible_to_starter_plus"

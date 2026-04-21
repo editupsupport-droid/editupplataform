@@ -10,6 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { FeedbackBanner } from "@/components/dashboard/feedback-banner"
+import { PageEmptyState } from "@/components/dashboard/page-empty-state"
 
 const initialForm = {
   title: "",
@@ -47,14 +49,29 @@ export default function VagasPage() {
     setMessage(result.message ?? "")
   }
 
+  const handleDelete = async (jobId: string) => {
+    try {
+      await deleteJob(jobId)
+      setMessage("Vaga removida com sucesso.")
+    } catch (error) {
+      console.error(error)
+      setMessage(error instanceof Error ? error.message : "Não foi possível remover a vaga.")
+    }
+  }
+
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-foreground md:text-3xl">Área de Vagas</h1>
+        <h1 className="text-2xl font-bold text-foreground md:text-3xl">Área de vagas</h1>
         <p className="mt-1 text-muted-foreground">
-          Usuários do plano Starter para cima podem visualizar as oportunidades. A publicação fica restrita aos e-mails autorizados.
+          Usuários Starter ou acima podem ver oportunidades. A publicação é limitada a e-mails autorizados.
         </p>
       </div>
+
+      <FeedbackBanner
+        message={message}
+        type={message.toLowerCase().includes("não foi possível") ? "error" : "success"}
+      />
 
       {canPublish && (
         <Card className="border-border bg-card">
@@ -78,7 +95,7 @@ export default function VagasPage() {
               </div>
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
-                  <Label className="text-foreground">Local</Label>
+                  <Label className="text-foreground">Localização</Label>
                   <Input value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} className="border-border bg-input" required />
                 </div>
                 <div className="space-y-2">
@@ -86,7 +103,7 @@ export default function VagasPage() {
                   <Input value={formData.format} onChange={(e) => setFormData({ ...formData, format: e.target.value })} className="border-border bg-input" required />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-foreground">Faixa</Label>
+                  <Label className="text-foreground">Faixa de valor</Label>
                   <Input value={formData.salary} onChange={(e) => setFormData({ ...formData, salary: e.target.value })} className="border-border bg-input" required />
                 </div>
               </div>
@@ -96,10 +113,10 @@ export default function VagasPage() {
               </div>
               <div className="space-y-2">
                 <Label className="text-foreground">Contato</Label>
-                <Input value={formData.contact} onChange={(e) => setFormData({ ...formData, contact: e.target.value })} className="border-border bg-input" placeholder="@instagram, e-mail ou telefone" required />
+                <Input value={formData.contact} onChange={(e) => setFormData({ ...formData, contact: e.target.value })} className="border-border bg-input" placeholder="@instagram, email ou telefone" required />
               </div>
               <div className="flex items-center justify-between gap-4">
-                <span className="text-sm text-muted-foreground">{message}</span>
+                <span className="text-sm text-muted-foreground">Publique apenas vagas que estejam claras e prontas para receber candidatos.</span>
                 <Button className="bg-primary text-primary-foreground hover:bg-primary/90" type="submit">
                   <Plus className="mr-2 h-4 w-4" />
                   Publicar vaga
@@ -111,6 +128,13 @@ export default function VagasPage() {
       )}
 
       <div className="grid gap-4">
+        {visibleJobs.length === 0 && (
+          <PageEmptyState
+            icon={<BriefcaseBusiness className="h-7 w-7" />}
+            title="Nenhuma vaga disponível agora"
+            description="Quando novas oportunidades forem publicadas, elas aparecerão aqui para você acompanhar com calma."
+          />
+        )}
         {visibleJobs.map((job) => (
           <Card key={job.id} className="border-border bg-card">
             <CardHeader>
@@ -124,7 +148,7 @@ export default function VagasPage() {
                   <span className="rounded-full bg-secondary px-3 py-1">{job.salary}</span>
                   {job.status === "found" && (
                     <Badge className="bg-primary/15 text-primary hover:bg-primary/15">
-                      Encontrada
+                      Preenchida
                     </Badge>
                   )}
                 </div>
@@ -145,19 +169,19 @@ export default function VagasPage() {
               <div className="flex items-center justify-between gap-4">
                 <div className="inline-flex items-center gap-2 text-sm text-foreground">
                   <BriefcaseBusiness className="h-4 w-4 text-primary" />
-                  Publicado por {job.publishedBy}
+                  Publicada por {job.publishedBy}
                 </div>
-                {canPublish && currentUser.email === job.publishedBy && (
+                {canPublish && currentUser.id === job.publishedById && (
                   <div className="flex flex-wrap gap-2">
                     {job.status !== "found" && (
                       <Button variant="outline" className="border-border" onClick={() => handleStatusChange(job.id, "found")}>
-                        Marcar encontrada
+                        Marcar como preenchida
                       </Button>
                     )}
                     <Button variant="outline" className="border-border" onClick={() => handleStatusChange(job.id, "cancelled")}>
                       Cancelar
                     </Button>
-                    <Button variant="outline" className="border-border" onClick={() => void deleteJob(job.id)}>
+                    <Button variant="outline" className="border-border" onClick={() => void handleDelete(job.id)}>
                       <Trash2 className="mr-2 h-4 w-4" />
                       Remover
                     </Button>

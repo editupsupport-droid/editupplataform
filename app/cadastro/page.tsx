@@ -13,28 +13,22 @@ import { canDirectLoginEmail } from "@/lib/app-data"
 
 const PLAN_CONTENT = {
   free: [
-    "Cadastro já entra no plano Free",
-    "Acesso somente à calculadora de valores",
+    "Toda conta nova comeca no Free",
+    "Acesso a calculadora de valores",
     "Upgrade quando quiser",
   ],
   starter: [
-    "Calculadora de preços de vídeo",
-    "Pack de edição completo",
-    "Área de vagas para visualizar oportunidades",
-    "Página profissional pública",
-    "100+ presets e transições",
-    "Efeitos sonoros básicos",
-    "Acesso vitalício",
+    "Calculadora de valores",
+    "Pack completo de edicao",
+    "Acesso somente a esses dois recursos",
+    "Acesso vitalicio",
   ],
   essential: [
-    "Tudo do plano Starter",
-    "Comunidade exclusiva",
-    "Avisos de novas vagas",
-    "Aulas semanais",
-    "Cursos de edição em produção",
-    "Atualizações mensais de conteúdo",
-    "Suporte prioritário",
-    "Certificado de conclusão",
+    "Tudo do Starter",
+    "Acesso total a plataforma",
+    "Comunidade privada",
+    "Acesso total ao Creative Cloud mensal",
+    "Suporte prioritario",
   ],
 } as const
 
@@ -67,23 +61,36 @@ export default function CadastroPage() {
     setSuccessMessage("")
     setCodeSent(false)
 
-    const result = await registerUser({ name, email, password })
-    setIsLoading(false)
+    try {
+      const result = await registerUser({
+        name: name.trim(),
+        email: email.trim(),
+        password,
+      })
 
-    if (!result.success) {
-      setErrorMessage(result.message ?? "Não foi possível criar sua conta.")
-      return
+      if (!result.success) {
+        setErrorMessage(result.message ?? "Nao foi possivel criar sua conta.")
+        return
+      }
+
+      const normalizedEmail = email.trim().toLowerCase()
+
+      if (canDirectLoginEmail(normalizedEmail)) {
+        router.push("/dashboard/calculadora")
+        return
+      }
+
+      if (result.requiresCode) {
+        setCodeSent(true)
+      }
+
+      setSuccessMessage(result.message ?? "Conta criada com sucesso.")
+    } catch (error) {
+      console.error(error)
+      setErrorMessage(error instanceof Error ? error.message : "Nao foi possivel criar sua conta.")
+    } finally {
+      setIsLoading(false)
     }
-
-    const normalizedEmail = email.trim().toLowerCase()
-
-    if (canDirectLoginEmail(normalizedEmail)) {
-      router.push("/dashboard/calculadora")
-      return
-    }
-
-    setCodeSent(true)
-    setSuccessMessage(result.message ?? "Código enviado.")
   }
 
   const handleVerifyCode = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -92,15 +99,21 @@ export default function CadastroPage() {
     setErrorMessage("")
     setSuccessMessage("")
 
-    const result = await verifyEmailCode(email, token)
-    setIsLoading(false)
+    try {
+      const result = await verifyEmailCode(email, token)
 
-    if (!result.success) {
-      setErrorMessage(result.message ?? "Não foi possível validar o código.")
-      return
+      if (!result.success) {
+        setErrorMessage(result.message ?? "Nao foi possivel verificar o codigo.")
+        return
+      }
+
+      router.push("/dashboard/calculadora")
+    } catch (error) {
+      console.error(error)
+      setErrorMessage(error instanceof Error ? error.message : "Nao foi possivel verificar o codigo.")
+    } finally {
+      setIsLoading(false)
     }
-
-    router.push("/dashboard/calculadora")
   }
 
   const handleGoogleSignup = async () => {
@@ -109,7 +122,7 @@ export default function CadastroPage() {
     setSuccessMessage("")
     const result = await signInWithGoogle()
     if (!result.success) {
-      setErrorMessage(result.message ?? "Não foi possível entrar com Google.")
+      setErrorMessage(result.message ?? "Nao foi possivel continuar com o Google.")
       setIsLoading(false)
     }
   }
@@ -130,9 +143,8 @@ export default function CadastroPage() {
           Voltar
         </Link>
 
-        <div className="mb-8 flex items-center gap-3">
-          <img src="/placeholder-logo.svg" alt="Astherisch" className="h-10 w-auto" />
-          <span className="text-2xl font-semibold text-foreground">Astherisch</span>
+        <div className="mb-8 flex justify-center">
+          <img src="/logo.jpeg" alt="Astherisch" className="h-14 w-auto object-contain sm:h-16" />
         </div>
 
         <div className="grid w-full max-w-4xl gap-8 md:grid-cols-2">
@@ -140,7 +152,7 @@ export default function CadastroPage() {
             <CardHeader>
               <CardTitle className="text-2xl text-foreground">Criar conta</CardTitle>
               <CardDescription className="text-muted-foreground">
-                Entre com Google ou crie com e-mail, senha e validação por código
+                Continue com Google ou crie sua conta com email e senha
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -158,9 +170,9 @@ export default function CadastroPage() {
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
                     <span className="w-full border-t border-border" />
-                  </div>
+                </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">ou crie com e-mail</span>
+                    <span className="bg-card px-2 text-muted-foreground">ou crie com email</span>
                   </div>
                 </div>
 
@@ -179,12 +191,12 @@ export default function CadastroPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="text-foreground">E-mail</Label>
+                    <Label htmlFor="email" className="text-foreground">Email</Label>
                     <Input
                       id="email"
                       name="email"
                       type="email"
-                      placeholder="seu@email.com"
+                    placeholder="voce@email.com"
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -217,12 +229,12 @@ export default function CadastroPage() {
                 {codeSent && (
                   <form onSubmit={handleVerifyCode} className="space-y-4 rounded-xl border border-border p-4">
                     <div className="space-y-2">
-                      <Label htmlFor="token" className="text-foreground">Código recebido</Label>
+                      <Label htmlFor="token" className="text-foreground">Codigo do email</Label>
                       <Input
                         id="token"
                         type="text"
                         inputMode="numeric"
-                        placeholder="Digite o código do e-mail"
+                        placeholder="Digite o codigo recebido"
                         required
                         value={token}
                         onChange={(e) => setToken(e.target.value)}
@@ -235,7 +247,7 @@ export default function CadastroPage() {
                       disabled={isLoading}
                     >
                       <ShieldCheck className="mr-2 h-4 w-4" />
-                      {isLoading ? "Validando..." : "Validar e entrar"}
+                      {isLoading ? "Verificando..." : "Verificar e entrar"}
                     </Button>
                   </form>
                 )}
@@ -246,7 +258,7 @@ export default function CadastroPage() {
             </CardContent>
             <CardFooter className="justify-center">
               <p className="text-sm text-muted-foreground">
-                Já tem uma conta?{" "}
+                Ja tem conta?{" "}
                 <Link href="/login" className="text-primary hover:underline">
                   Entrar
                 </Link>
@@ -256,10 +268,10 @@ export default function CadastroPage() {
 
           <div className="hidden flex-col justify-center md:flex">
             <h3 className="mb-2 text-xl font-semibold text-foreground">
-              O que você vai ter no plano {selectedPlan === "free" ? "Free" : selectedPlan === "starter" ? "Starter" : "Essential"}:
+              O que voce recebe no plano {selectedPlan === "free" ? "Free" : selectedPlan === "starter" ? "Starter" : "Essential"}:
             </h3>
             <p className="mb-6 text-sm text-muted-foreground">
-              Conteúdo e recursos mostrados conforme o plano escolhido na landing page.
+              Recursos e acessos de acordo com o plano selecionado na landing page.
             </p>
             <ul className="space-y-4">
               {planItems.map((item) => (

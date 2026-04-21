@@ -12,28 +12,22 @@ import { useAppSession } from "@/components/app/app-provider"
 
 const PLAN_CONTENT = {
   free: [
-    "Cadastro já entra no plano Free",
-    "Acesso somente à calculadora de valores",
+    "Toda conta nova começa no Free",
+    "Acesso à calculadora de valores",
     "Upgrade quando quiser",
   ],
   starter: [
-    "Calculadora de preços de vídeo",
-    "Pack de edição completo",
-    "Área de vagas para visualizar oportunidades",
-    "Página profissional pública",
-    "100+ presets e transições",
-    "Efeitos sonoros básicos",
+    "Calculadora de valores",
+    "Pack completo de edição",
+    "Acesso somente a esses dois recursos",
     "Acesso vitalício",
   ],
   essential: [
-    "Tudo do plano Starter",
-    "Comunidade exclusiva",
-    "Avisos de novas vagas",
-    "Aulas semanais",
-    "Cursos de edição em produção",
-    "Atualizações mensais de conteúdo",
+    "Tudo do Starter",
+    "Acesso total à plataforma",
+    "Comunidade privada",
+    "Acesso total ao Creative Cloud mensal",
     "Suporte prioritário",
-    "Certificado de conclusão",
   ],
 } as const
 
@@ -69,13 +63,13 @@ export default function LoginPage() {
     setIsLoading(false)
 
     if (!result.success) {
-      setErrorMessage(result.message ?? "Não foi possível entrar.")
+      setErrorMessage(result.message ?? "Nao foi possivel entrar.")
       return
     }
 
     if (result.requiresCode) {
       setCodeSent(true)
-      setSuccessMessage(result.message ?? "Código enviado.")
+      setSuccessMessage(result.message ?? "Codigo enviado.")
       return
     }
 
@@ -92,7 +86,7 @@ export default function LoginPage() {
     setIsLoading(false)
 
     if (!result.success) {
-      setErrorMessage(result.message ?? "Código inválido.")
+      setErrorMessage(result.message ?? "Codigo invalido.")
       return
     }
 
@@ -105,7 +99,7 @@ export default function LoginPage() {
     setIsLoading(true)
     const result = await signInWithGoogle()
     if (!result.success) {
-      setErrorMessage(result.message ?? "Não foi possível entrar com Google.")
+      setErrorMessage(result.message ?? "Nao foi possivel continuar com o Google.")
       setIsLoading(false)
     }
   }
@@ -126,17 +120,16 @@ export default function LoginPage() {
           Voltar
         </Link>
 
-        <div className="mb-8 flex items-center gap-3">
-          <img src="/placeholder-logo.svg" alt="Astherisch" className="h-10 w-auto" />
-          <span className="text-2xl font-semibold text-foreground">Astherisch</span>
+        <div className="mb-8 flex justify-center">
+          <img src="/logo.jpeg" alt="Astherisch" className="h-14 w-auto object-contain sm:h-16" />
         </div>
 
         <div className="grid w-full max-w-4xl gap-8 md:grid-cols-2">
         <Card className="w-full max-w-md border-border bg-card md:max-w-none">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl text-foreground">Bem-vindo de volta</CardTitle>
+            <CardTitle className="text-2xl text-foreground">Entrar</CardTitle>
             <CardDescription className="text-muted-foreground">
-              Entre com Google ou use e-mail e senha para receber o código
+              Continue com Google ou use email e senha para receber um codigo
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -148,7 +141,7 @@ export default function LoginPage() {
                 onClick={handleGoogleLogin}
                 disabled={isLoading}
               >
-                Entrar com Google
+                Continuar com Google
               </Button>
 
               <div className="relative">
@@ -156,18 +149,18 @@ export default function LoginPage() {
                   <span className="w-full border-t border-border" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">ou continue com código</span>
+                  <span className="bg-card px-2 text-muted-foreground">ou continue com codigo</span>
                 </div>
               </div>
 
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-foreground">E-mail</Label>
+                  <Label htmlFor="email" className="text-foreground">Email</Label>
                   <Input
                     id="email"
                     name="email"
                     type="email"
-                    placeholder="seu@email.com"
+                    placeholder="voce@email.com"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -200,12 +193,12 @@ export default function LoginPage() {
               {codeSent && (
                 <form onSubmit={handleVerifyCode} className="space-y-4 rounded-xl border border-border p-4">
                   <div className="space-y-2">
-                    <Label htmlFor="token" className="text-foreground">Código recebido</Label>
+                    <Label htmlFor="token" className="text-foreground">Codigo do email</Label>
                     <Input
                       id="token"
                       type="text"
                       inputMode="numeric"
-                      placeholder="Digite o código do e-mail"
+                      placeholder="Digite o codigo recebido"
                       required
                       value={token}
                       onChange={(e) => setToken(e.target.value)}
@@ -218,7 +211,7 @@ export default function LoginPage() {
                     disabled={isLoading}
                   >
                     <ShieldCheck className="mr-2 h-4 w-4" />
-                    {isLoading ? "Validando..." : "Validar e entrar"}
+                    {isLoading ? "Verificando..." : "Verificar e entrar"}
                   </Button>
                 </form>
               )}
@@ -229,7 +222,7 @@ export default function LoginPage() {
           </CardContent>
           <CardFooter className="justify-center">
             <p className="text-sm text-muted-foreground">
-              Não tem uma conta?{" "}
+              Ainda nao tem conta?{" "}
               <Link href={`/cadastro?plan=${selectedPlan}`} className="text-primary hover:underline">
                 Criar conta
               </Link>
@@ -238,10 +231,10 @@ export default function LoginPage() {
         </Card>
           <div className="hidden flex-col justify-center md:flex">
             <h3 className="mb-2 text-xl font-semibold text-foreground">
-              Conteúdo do plano {selectedPlan === "free" ? "Free" : selectedPlan === "starter" ? "Starter" : "Essential"}:
+              O plano {selectedPlan === "free" ? "Free" : selectedPlan === "starter" ? "Starter" : "Essential"} inclui:
             </h3>
             <p className="mb-6 text-sm text-muted-foreground">
-              Se você veio pela landing page, este é o conteúdo previsto para o plano selecionado.
+              Se voce veio da landing page, estes sao os recursos esperados para o plano selecionado.
             </p>
             <ul className="space-y-4">
               {planItems.map((item) => (

@@ -21,6 +21,9 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useAppSession } from "@/components/app/app-provider"
+import { FeedbackBanner } from "@/components/dashboard/feedback-banner"
+import { PageEmptyState } from "@/components/dashboard/page-empty-state"
+import { PageLoadingState } from "@/components/dashboard/page-loading-state"
 import {
   createFinanceTransaction,
   createFixedExpense,
@@ -28,6 +31,9 @@ import {
   deleteFixedExpense,
   fetchFinanceTransactions,
   fetchFixedExpenses,
+  getCachedFinanceTransactions,
+  getCachedFixedExpenses,
+  getCachedWorkspaceClients,
   fetchWorkspaceClients,
   subscribeWorkspaceSync,
   type FinanceTransaction,
@@ -39,6 +45,11 @@ export default function FinanceiroPage() {
   const [transacoes, setTransacoes] = useState<FinanceTransaction[]>([])
   const [clientes, setClientes] = useState<string[]>([])
   const [gastosFixos, setGastosFixos] = useState<FixedExpense[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [feedbackMessage, setFeedbackMessage] = useState("")
+  const [feedbackError, setFeedbackError] = useState("")
+  const [isSavingTransaction, setIsSavingTransaction] = useState(false)
+  const [isSavingExpense, setIsSavingExpense] = useState(false)
 
   const [dialogTransacaoOpen, setDialogTransacaoOpen] = useState(false)
   const [dialogGastoFixoOpen, setDialogGastoFixoOpen] = useState(false)
@@ -47,24 +58,47 @@ export default function FinanceiroPage() {
     tipo: "entrada" as "entrada" | "saida",
     valor: "",
     descricao: "",
-    categoria: "",
+    categoria: "Freelance",
     cliente: ""
   })
 
   const [novoGastoFixo, setNovoGastoFixo] = useState({
     nome: "",
     valor: "",
-    categoria: ""
+    categoria: "Software"
   })
 
-  const categoriasEntrada = ["Freelance", "Pacote", "Projeto", "Bônus", "Outros"]
-  const categoriasSaida = ["Software", "Equipamento", "Infraestrutura", "Cursos", "Impostos", "Outros"]
+  const categoriasEntrada = ["Freelance", "Package", "Project", "Bonus", "Other"]
+  const categoriasSaida = ["Software", "Equipment", "Infrastructure", "Courses", "Taxes", "Other"]
 
   useEffect(() => {
     if (!currentUser) return
+    const cachedClients = getCachedWorkspaceClients(currentUser.id)
+    const cachedTransactions = getCachedFinanceTransactions(currentUser.id)
+    const cachedExpenses = getCachedFixedExpenses(currentUser.id)
 
-    const syncFinance = async () => {
+    if (cachedClients) {
+      setClientes(cachedClients.map((client) => client.nome))
+    }
+
+    if (cachedTransactions) {
+      setTransacoes(cachedTransactions)
+    }
+
+    if (cachedExpenses) {
+      setGastosFixos(cachedExpenses)
+    }
+
+    if (cachedClients && cachedTransactions && cachedExpenses) {
+      setIsLoading(false)
+    }
+
+    const syncFinance = async (showLoader = false) => {
       try {
+        if (showLoader) {
+          setIsLoading(true)
+        }
+        setFeedbackError("")
         const [workspaceClients, workspaceTransactions, workspaceExpenses] = await Promise.all([
           fetchWorkspaceClients(currentUser.id),
           fetchFinanceTransactions(currentUser.id),
@@ -76,12 +110,34 @@ export default function FinanceiroPage() {
         setGastosFixos(workspaceExpenses)
       } catch (error) {
         console.error(error)
+        setFeedbackError(error instanceof Error ? error.message : "Não foi possível carregar os dados financeiros.")
+      } finally {
+        setIsLoading(false)
       }
     }
 
-    void syncFinance()
-    return subscribeWorkspaceSync(() => {
+    if (!cachedClients || !cachedTransactions || !cachedExpenses) {
+      void syncFinance(true)
+    } else {
       void syncFinance()
+    }
+
+    return subscribeWorkspaceSync(() => {
+      const nextClients = getCachedWorkspaceClients(currentUser.id)
+      const nextTransactions = getCachedFinanceTransactions(currentUser.id)
+      const nextExpenses = getCachedFixedExpenses(currentUser.id)
+
+      if (nextClients) {
+        setClientes(nextClients.map((client) => client.nome))
+      }
+
+      if (nextTransactions) {
+        setTransacoes(nextTransactions)
+      }
+
+      if (nextExpenses) {
+        setGastosFixos(nextExpenses)
+      }
     })
   }, [currentUser])
 
@@ -102,48 +158,6 @@ export default function FinanceiroPage() {
 
   const saldoLiquido = totalEntradas - totalSaidas - totalGastosFixos
   const isNegativo = saldoLiquido < 0
-
-  const handleAddTransacao = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!currentUser) return
-    const transacao = await createFinanceTransaction(currentUser.id, {
-      tipo: novaTransacao.tipo,
-      valor: parseFloat(novaTransacao.valor),
-      descricao: novaTransacao.descricao,
-      categoria: novaTransacao.categoria,
-      cliente: novaTransacao.cliente,
-      data: new Date().toISOString(),
-    })
-    setTransacoes((prev) => [transacao, ...prev])
-    setNovaTransacao({ tipo: "entrada", valor: "", descricao: "", categoria: "", cliente: "" })
-    setDialogTransacaoOpen(false)
-  }
-
-  const handleAddGastoFixo = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!currentUser) return
-    const gasto = await createFixedExpense(currentUser.id, {
-      nome: novoGastoFixo.nome,
-      valor: parseFloat(novoGastoFixo.valor),
-      categoria: novoGastoFixo.categoria,
-    })
-    setGastosFixos((prev) => [gasto, ...prev])
-    setNovoGastoFixo({ nome: "", valor: "", categoria: "" })
-    setDialogGastoFixoOpen(false)
-  }
-
-  const handleDeleteTransacao = async (id: string) => {
-    if (!currentUser) return
-    await deleteFinanceTransaction(currentUser.id, id)
-    setTransacoes((prev) => prev.filter((t) => t.id !== id))
-  }
-
-  const handleDeleteGastoFixo = async (id: string) => {
-    if (!currentUser) return
-    await deleteFixedExpense(currentUser.id, id)
-    setGastosFixos((prev) => prev.filter((g) => g.id !== id))
-  }
-
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
@@ -151,149 +165,294 @@ export default function FinanceiroPage() {
     }).format(value)
   }
 
+  const financeSummary = [
+    {
+      label: "Entradas",
+      value: formatCurrency(totalEntradas),
+      hint: "Tudo que entrou no caixa",
+      tone: "text-primary",
+      icon: TrendingUp,
+    },
+    {
+      label: "Saídas variáveis",
+      value: formatCurrency(totalSaidas),
+      hint: "Gastos operacionais e de projeto",
+      tone: "text-red-400",
+      icon: TrendingDown,
+    },
+    {
+      label: "Custos fixos",
+      value: formatCurrency(totalGastosFixos),
+      hint: "Despesas recorrentes do mês",
+      tone: "text-yellow-400",
+      icon: DollarSign,
+    },
+    {
+      label: "Saldo líquido",
+      value: formatCurrency(saldoLiquido),
+      hint: isNegativo ? "Negativo depois das despesas" : "Disponível depois das despesas",
+      tone: isNegativo ? "text-red-400" : "text-foreground",
+      icon: DollarSign,
+    },
+  ]
+
+  const handleAddTransacao = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!currentUser) {
+      setFeedbackError("Faça login novamente para adicionar uma transação.")
+      return
+    }
+
+    setIsSavingTransaction(true)
+    setFeedbackMessage("")
+    setFeedbackError("")
+
+    try {
+      const transacao = await createFinanceTransaction(currentUser.id, {
+        tipo: novaTransacao.tipo,
+        valor: parseFloat(novaTransacao.valor),
+        descricao: novaTransacao.descricao.trim(),
+        categoria: novaTransacao.categoria,
+        cliente: novaTransacao.cliente,
+        data: new Date().toISOString(),
+      })
+      setTransacoes((prev) => [transacao, ...prev])
+      setNovaTransacao({ tipo: "entrada", valor: "", descricao: "", categoria: "Freelance", cliente: "" })
+      setDialogTransacaoOpen(false)
+      setFeedbackMessage("Transação adicionada com sucesso.")
+    } catch (error) {
+      console.error(error)
+      setFeedbackError(error instanceof Error ? error.message : "Não foi possível salvar a transação.")
+    } finally {
+      setIsSavingTransaction(false)
+    }
+  }
+
+  const handleAddGastoFixo = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!currentUser) {
+      setFeedbackError("Faça login novamente para adicionar um gasto fixo.")
+      return
+    }
+
+    setIsSavingExpense(true)
+    setFeedbackMessage("")
+    setFeedbackError("")
+
+    try {
+      const gasto = await createFixedExpense(currentUser.id, {
+        nome: novoGastoFixo.nome.trim(),
+        valor: parseFloat(novoGastoFixo.valor),
+        categoria: novoGastoFixo.categoria,
+      })
+      setGastosFixos((prev) => [gasto, ...prev])
+      setNovoGastoFixo({ nome: "", valor: "", categoria: "Software" })
+      setDialogGastoFixoOpen(false)
+      setFeedbackMessage("Gasto fixo adicionado com sucesso.")
+    } catch (error) {
+      console.error(error)
+      setFeedbackError(error instanceof Error ? error.message : "Não foi possível salvar o gasto fixo.")
+    } finally {
+      setIsSavingExpense(false)
+    }
+  }
+
+  const handleDeleteTransacao = async (id: string) => {
+    if (!currentUser) return
+    try {
+      setFeedbackMessage("")
+      setFeedbackError("")
+      await deleteFinanceTransaction(currentUser.id, id)
+      setTransacoes((prev) => prev.filter((t) => t.id !== id))
+      setFeedbackMessage("Transação removida com sucesso.")
+    } catch (error) {
+      console.error(error)
+      setFeedbackError(error instanceof Error ? error.message : "Não foi possível remover a transação.")
+    }
+  }
+
+  const handleDeleteGastoFixo = async (id: string) => {
+    if (!currentUser) return
+    try {
+      setFeedbackMessage("")
+      setFeedbackError("")
+      await deleteFixedExpense(currentUser.id, id)
+      setGastosFixos((prev) => prev.filter((g) => g.id !== id))
+      setFeedbackMessage("Gasto fixo removido com sucesso.")
+    } catch (error) {
+      console.error(error)
+      setFeedbackError(error instanceof Error ? error.message : "Não foi possível remover o gasto fixo.")
+    }
+  }
+
   const formatDate = (date: string) => {
     return new Intl.DateTimeFormat("pt-BR", {
       day: "2-digit",
-      month: "short"
+      month: "short",
     }).format(new Date(date))
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Financeiro</h1>
-          <p className="text-muted-foreground mt-1">Controle suas finanças de forma simples</p>
+          <h1 className="text-3xl font-semibold text-foreground">Finanças</h1>
+          <p className="mt-1 max-w-2xl text-muted-foreground">Uma visão clara do que entrou, do que saiu e do que realmente sobra depois dos custos fixos.</p>
         </div>
-        <Dialog open={dialogTransacaoOpen} onOpenChange={setDialogTransacaoOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
-              <Plus className="w-4 h-4 mr-2" />
-              Nova Transação
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="bg-card border-border">
-            <DialogHeader>
-              <DialogTitle className="text-foreground">Nova Transação</DialogTitle>
-              <DialogDescription className="text-muted-foreground">
-                Registre uma entrada ou saída
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleAddTransacao} className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label className="text-foreground">Tipo</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setNovaTransacao({ ...novaTransacao, tipo: "entrada", categoria: "", cliente: "" })}
-                    className={`p-3 rounded-lg border text-center transition-all ${
-                      novaTransacao.tipo === "entrada"
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border bg-background text-muted-foreground hover:border-primary/50"
-                    }`}
-                  >
-                    <ArrowUpRight className="w-5 h-5 mx-auto mb-1" />
-                    <span className="text-sm font-medium">Entrada</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNovaTransacao({ ...novaTransacao, tipo: "saida", categoria: "", cliente: "" })}
-                    className={`p-3 rounded-lg border text-center transition-all ${
-                      novaTransacao.tipo === "saida"
-                        ? "border-red-500 bg-red-500/10 text-red-400"
-                        : "border-border bg-background text-muted-foreground hover:border-red-500/50"
-                    }`}
-                  >
-                    <ArrowDownRight className="w-5 h-5 mx-auto mb-1" />
-                    <span className="text-sm font-medium">Saída</span>
-                  </button>
+        <div className="flex flex-wrap gap-3">
+          <div className="rounded-2xl border border-border bg-background/70 px-4 py-3 text-sm text-muted-foreground">
+            Pense nesta página como um caderno calmo de caixa, não como um painel barulhento.
+          </div>
+          <Dialog open={dialogTransacaoOpen} onOpenChange={setDialogTransacaoOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                <Plus className="w-4 h-4 mr-2" />
+                Nova transação
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-card border-border">
+              <DialogHeader>
+                <DialogTitle className="text-foreground">Nova transação</DialogTitle>
+                <DialogDescription className="text-muted-foreground">
+                  Adicione uma entrada ou saída
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleAddTransacao} className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label className="text-foreground">Tipo</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setNovaTransacao({ ...novaTransacao, tipo: "entrada", categoria: "Freelance", cliente: "" })}
+                      className={`p-3 rounded-lg border text-center transition-all ${
+                        novaTransacao.tipo === "entrada"
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border bg-background text-muted-foreground hover:border-primary/50"
+                      }`}
+                    >
+                      <ArrowUpRight className="w-5 h-5 mx-auto mb-1" />
+                      <span className="text-sm font-medium">Entrada</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNovaTransacao({ ...novaTransacao, tipo: "saida", categoria: "Software", cliente: "" })}
+                      className={`p-3 rounded-lg border text-center transition-all ${
+                        novaTransacao.tipo === "saida"
+                          ? "border-red-500 bg-red-500/10 text-red-400"
+                          : "border-border bg-background text-muted-foreground hover:border-red-500/50"
+                      }`}
+                    >
+                      <ArrowDownRight className="w-5 h-5 mx-auto mb-1" />
+                      <span className="text-sm font-medium">Saída</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label className="text-foreground">Valor</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">R$</span>
+                <div className="space-y-2">
+                  <Label className="text-foreground">Valor</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={novaTransacao.valor}
+                      onChange={(e) => setNovaTransacao({ ...novaTransacao, valor: e.target.value })}
+                      placeholder="0.00"
+                      className="bg-background border-border pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-foreground">Descrição</Label>
                   <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={novaTransacao.valor}
-                    onChange={(e) => setNovaTransacao({ ...novaTransacao, valor: e.target.value })}
-                    placeholder="0,00"
-                    className="bg-background border-border pl-10"
+                    value={novaTransacao.descricao}
+                    onChange={(e) => setNovaTransacao({ ...novaTransacao, descricao: e.target.value })}
+                    placeholder="Ex: Edição de vídeo para cliente X"
+                    className="bg-background border-border"
                     required
                   />
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label className="text-foreground">Descrição</Label>
-                <Input
-                  value={novaTransacao.descricao}
-                  onChange={(e) => setNovaTransacao({ ...novaTransacao, descricao: e.target.value })}
-                  placeholder="Ex: Edição de vídeo para cliente X"
-                  className="bg-background border-border"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-foreground">Categoria</Label>
-                <Select
-                  value={novaTransacao.categoria}
-                  onValueChange={(value) => setNovaTransacao({ ...novaTransacao, categoria: value })}
-                >
-                  <SelectTrigger className="bg-background border-border">
-                    <SelectValue placeholder="Selecione a categoria" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    {(novaTransacao.tipo === "entrada" ? categoriasEntrada : categoriasSaida).map((cat) => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {novaTransacao.tipo === "entrada" && (
                 <div className="space-y-2">
-                  <Label className="text-foreground">Cliente</Label>
+                  <Label className="text-foreground">Categoria</Label>
                   <Select
-                    value={novaTransacao.cliente || "sem-cliente"}
-                    onValueChange={(value) =>
-                      setNovaTransacao({ ...novaTransacao, cliente: value === "sem-cliente" ? "" : value })
-                    }
+                    value={novaTransacao.categoria}
+                    onValueChange={(value) => setNovaTransacao({ ...novaTransacao, categoria: value })}
                   >
                     <SelectTrigger className="bg-background border-border">
-                      <SelectValue placeholder="Selecione o cliente, se quiser" />
+                      <SelectValue placeholder="Selecione uma categoria" />
                     </SelectTrigger>
                     <SelectContent className="bg-card border-border">
-                      <SelectItem value="sem-cliente">Sem cliente vinculado</SelectItem>
-                      {clientes.map((cliente) => (
-                        <SelectItem key={cliente} value={cliente}>{cliente}</SelectItem>
+                      {(novaTransacao.tipo === "entrada" ? categoriasEntrada : categoriasSaida).map((cat) => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">
-                    {clienteSelecionado
-                      ? `Pagamento vinculado a ${clienteSelecionado}.`
-                      : clientes.length > 0
-                        ? "Você também pode registrar a entrada sem cliente vinculado."
-                        : "Cadastre clientes na área de Clientes para eles aparecerem aqui."}
-                  </p>
                 </div>
-              )}
 
-              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-                Adicionar Transação
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <div className="space-y-2">
+                  {novaTransacao.tipo === "entrada" && (
+                    <>
+                      <Label className="text-foreground">Cliente</Label>
+                      <Select
+                        value={novaTransacao.cliente || "no-client"}
+                        onValueChange={(value) =>
+                          setNovaTransacao({ ...novaTransacao, cliente: value === "no-client" ? "" : value })
+                        }
+                      >
+                        <SelectTrigger className="bg-background border-border">
+                          <SelectValue placeholder="Selecione um cliente se quiser" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-card border-border">
+                          <SelectItem value="no-client">Nenhum cliente vinculado</SelectItem>
+                          {clientes.map((cliente) => (
+                            <SelectItem key={cliente} value={cliente}>{cliente}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        {clienteSelecionado
+                          ? `Pagamento vinculado a ${clienteSelecionado}.`
+                          : clientes.length > 0
+                            ? "Você também pode adicionar uma entrada sem vincular cliente."
+                            : "Adicione clientes na área de Clientes para vê-los aqui."}
+                      </p>
+                    </>
+                  )}
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                  disabled={
+                    isSavingTransaction ||
+                    !novaTransacao.valor ||
+                    !novaTransacao.descricao.trim()
+                  }
+                >
+                  {isSavingTransaction ? "Salvando..." : "Adicionar transação"}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
+      <FeedbackBanner message={feedbackMessage} type="success" />
+      <FeedbackBanner message={feedbackError} type="error" />
+
+      {isLoading && (
+        <PageLoadingState
+          title="Carregando finanças"
+          description="Estamos reunindo transações, clientes e custos fixos para mostrar seu caixa."
+        />
+      )}
+
       {/* Alerta de Saldo Negativo */}
-      {isNegativo && (
+      {!isLoading && isNegativo && (
         <Card className="bg-red-500/10 border-red-500/30">
           <CardContent className="flex items-center justify-between py-4">
             <div className="flex items-center gap-3">
@@ -301,86 +460,60 @@ export default function FinanceiroPage() {
                 <AlertTriangle className="w-5 h-5 text-red-400" />
               </div>
               <div>
-                <h3 className="font-medium text-red-400">Saldo Negativo</h3>
+                <h3 className="font-medium text-red-400">Saldo negativo</h3>
                 <p className="text-sm text-red-400/70">
-                  Seus gastos estão maiores que suas entradas este mês
+                  Seus gastos estão maiores que suas entradas neste período
                 </p>
               </div>
             </div>
             <Link href="/dashboard/prospeccao">
               <Button className="bg-red-500 hover:bg-red-600 text-white">
                 <BookOpen className="w-4 h-4 mr-2" />
-                Ver Guia de Prospecção
+                Ver guia de prospecção
               </Button>
             </Link>
           </CardContent>
         </Card>
       )}
 
-      {/* Cards de Resumo */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Entradas</CardTitle>
-            <TrendingUp className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-primary">{formatCurrency(totalEntradas)}</div>
-            <p className="text-xs text-muted-foreground">Este mês</p>
-          </CardContent>
-        </Card>
+      {!isLoading && (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {financeSummary.map((item) => (
+            <Card key={item.label} className="border-border bg-card/90">
+              <CardContent className="flex items-start justify-between gap-4 p-5">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-foreground">{item.label}</p>
+                  <p className={`text-2xl font-semibold ${item.tone}`}>{item.value}</p>
+                  <p className="text-xs text-muted-foreground">{item.hint}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-background p-2.5">
+                  <item.icon className={`h-4 w-4 ${item.tone}`} />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Saídas</CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-400">{formatCurrency(totalSaidas)}</div>
-            <p className="text-xs text-muted-foreground">Este mês</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Gastos Fixos</CardTitle>
-            <DollarSign className="h-4 w-4 text-yellow-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-400">{formatCurrency(totalGastosFixos)}</div>
-            <p className="text-xs text-muted-foreground">Mensal</p>
-          </CardContent>
-        </Card>
-
-        <Card className={`border ${isNegativo ? "bg-red-500/10 border-red-500/30" : "bg-primary/10 border-primary/30"}`}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Saldo Líquido</CardTitle>
-            <DollarSign className={`h-4 w-4 ${isNegativo ? "text-red-400" : "text-primary"}`} />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${isNegativo ? "text-red-400" : "text-primary"}`}>
-              {formatCurrency(saldoLiquido)}
-            </div>
-            <p className="text-xs text-muted-foreground">Após gastos fixos</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-3">
+      {!isLoading && <div className="grid gap-6 lg:grid-cols-3">
         {/* Lista de Transações */}
         <div className="lg:col-span-2">
           <Card className="bg-card border-border">
             <CardHeader>
-              <CardTitle className="text-foreground">Transações Recentes</CardTitle>
+              <CardTitle className="text-foreground">Transações recentes</CardTitle>
               <CardDescription className="text-muted-foreground">
                 Histórico de entradas e saídas
               </CardDescription>
             </CardHeader>
             <CardContent>
               {transacoes.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  Nenhuma transação registrada
-                </div>
+                <PageEmptyState
+                  icon={<TrendingUp className="h-7 w-7" />}
+                  title="Nenhuma transação por enquanto"
+                  description="Adicione sua primeira entrada ou saída para começar a acompanhar o caixa com clareza."
+                  actionLabel="Nova transação"
+                  onAction={() => setDialogTransacaoOpen(true)}
+                />
               ) : (
                 <div className="space-y-3">
                   {transacoes.map((transacao) => (
@@ -445,9 +578,9 @@ export default function FinanceiroPage() {
           <Card className="bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <div>
-                <CardTitle className="text-foreground">Gastos Fixos</CardTitle>
+              <CardTitle className="text-foreground">Gastos fixos</CardTitle>
                 <CardDescription className="text-muted-foreground">
-                  Despesas mensais recorrentes
+                  Custos recorrentes do mês
                 </CardDescription>
               </div>
               <Dialog open={dialogGastoFixoOpen} onOpenChange={setDialogGastoFixoOpen}>
@@ -458,9 +591,9 @@ export default function FinanceiroPage() {
                 </DialogTrigger>
                 <DialogContent className="bg-card border-border">
                   <DialogHeader>
-                    <DialogTitle className="text-foreground">Novo Gasto Fixo</DialogTitle>
+                    <DialogTitle className="text-foreground">Novo gasto fixo</DialogTitle>
                     <DialogDescription className="text-muted-foreground">
-                      Adicione uma despesa mensal recorrente
+                      Adicione uma despesa recorrente mensal
                     </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleAddGastoFixo} className="space-y-4 mt-4">
@@ -475,16 +608,16 @@ export default function FinanceiroPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-foreground">Valor Mensal</Label>
+                      <Label className="text-foreground">Valor mensal</Label>
                       <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">R$</span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                         <Input
                           type="number"
                           step="0.01"
                           min="0"
                           value={novoGastoFixo.valor}
                           onChange={(e) => setNovoGastoFixo({ ...novoGastoFixo, valor: e.target.value })}
-                          placeholder="0,00"
+                          placeholder="0.00"
                           className="bg-background border-border pl-10"
                           required
                         />
@@ -497,7 +630,7 @@ export default function FinanceiroPage() {
                         onValueChange={(value) => setNovoGastoFixo({ ...novoGastoFixo, categoria: value })}
                       >
                         <SelectTrigger className="bg-background border-border">
-                          <SelectValue placeholder="Selecione" />
+                          <SelectValue placeholder="Selecione uma" />
                         </SelectTrigger>
                         <SelectContent className="bg-card border-border">
                           {categoriasSaida.map((cat) => (
@@ -506,8 +639,16 @@ export default function FinanceiroPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-                      Adicionar Gasto Fixo
+                    <Button
+                      type="submit"
+                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                        disabled={
+                          isSavingExpense ||
+                          !novoGastoFixo.nome.trim() ||
+                          !novoGastoFixo.valor
+                        }
+                    >
+                      {isSavingExpense ? "Salvando..." : "Adicionar gasto fixo"}
                     </Button>
                   </form>
                 </DialogContent>
@@ -515,9 +656,13 @@ export default function FinanceiroPage() {
             </CardHeader>
             <CardContent>
               {gastosFixos.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground text-sm">
-                  Nenhum gasto fixo cadastrado
-                </div>
+                <PageEmptyState
+                  icon={<DollarSign className="h-7 w-7" />}
+                  title="Nenhum gasto fixo por enquanto"
+                  description="Cadastre custos recorrentes como software, infraestrutura ou impostos para acompanhar seu saldo real."
+                  actionLabel="Novo gasto fixo"
+                  onAction={() => setDialogGastoFixoOpen(true)}
+                />
               ) : (
                 <div className="space-y-2">
                   {gastosFixos.map((gasto) => (
@@ -546,7 +691,7 @@ export default function FinanceiroPage() {
                   ))}
                   <div className="pt-3 border-t border-border mt-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Total Mensal</span>
+                      <span className="text-sm text-muted-foreground">Total mensal</span>
                       <span className="font-bold text-yellow-400">{formatCurrency(totalGastosFixos)}</span>
                     </div>
                   </div>
@@ -555,7 +700,7 @@ export default function FinanceiroPage() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </div>}
     </div>
   )
 }

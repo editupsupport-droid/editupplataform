@@ -1,123 +1,113 @@
 import { NextRequest, NextResponse } from "next/server"
+import { requireAuthenticatedUser } from "@/lib/supabase-server"
 
 export const runtime = "nodejs"
+const taskColumns =
+  "id,user_id,title,description,client_id,client_name,due_date,column_id,drive_link,approval_link,approved,client_feedback,client_status,notification_read,created_at,updated_at"
 
-const getConfig = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("Supabase não configurado.")
-  }
-
-  return { supabaseUrl, serviceRoleKey }
+type TaskPatchBody = {
+  id?: string
+  changes?: Record<string, unknown>
 }
 
-const baseHeaders = (serviceRoleKey: string) => ({
-  apikey: serviceRoleKey,
-  Authorization: `Bearer ${serviceRoleKey}`,
-})
+const allowedTaskFields = new Set([
+  "title",
+  "description",
+  "client_id",
+  "client_name",
+  "due_date",
+  "column_id",
+  "drive_link",
+  "notification_read",
+])
 
-const jsonHeaders = (serviceRoleKey: string) => ({
-  ...baseHeaders(serviceRoleKey),
-  "Content-Type": "application/json",
-  Prefer: "return=representation",
-})
+const sanitizeTaskPayload = (payload: Record<string, unknown>) =>
+  Object.fromEntries(
+    Object.entries(payload).filter(
+      ([key, value]) => allowedTaskFields.has(key) && value !== undefined
+    )
+  )
 
 export async function GET(request: NextRequest) {
   try {
-    const { supabaseUrl, serviceRoleKey } = getConfig()
-    const userId = request.nextUrl.searchParams.get("userId")
+    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { data, error } = await supabase
+      .from("board_cards")
+      .select(taskColumns)
+      .eq("user_id", user.id)
+      .order("updated_at", { ascending: false })
 
-    if (!userId) {
-      return NextResponse.json({ error: "Usuário inválido." }, { status: 400 })
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 403 })
     }
 
-    const response = await fetch(
-      `${supabaseUrl}/rest/v1/board_cards?user_id=eq.${encodeURIComponent(userId)}&select=*&order=updated_at.desc`,
-      {
-        headers: baseHeaders(serviceRoleKey),
-        cache: "no-store",
-      }
-    )
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      return NextResponse.json(
-        { error: errorText || "Não foi possível carregar a agenda." },
-        { status: response.status }
-      )
-    }
-
-    const tasks = (await response.json()) as Array<Record<string, unknown>>
-    return NextResponse.json({ tasks })
+    return NextResponse.json({ tasks: data ?? [] })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro ao carregar tarefas."
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: message }, { status: message === "Não autenticado." ? 401 : 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { supabaseUrl, serviceRoleKey } = getConfig()
+    const { supabase, user } = await requireAuthenticatedUser(request)
     const body = (await request.json()) as Record<string, unknown>
-
-    const response = await fetch(`${supabaseUrl}/rest/v1/board_cards`, {
-      method: "POST",
-      headers: jsonHeaders(serviceRoleKey),
-      body: JSON.stringify(body),
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      return NextResponse.json(
-        { error: errorText || "Não foi possível salvar a tarefa." },
-        { status: response.status }
-      )
+    const payload: Record<string, unknown> = {
+      ...sanitizeTaskPayload(body),
+      user_id: user.id,
     }
 
-    const rows = (await response.json()) as Array<Record<string, unknown>>
-    return NextResponse.json({ task: rows[0] ?? null })
+    if (typeof payload.title !== "string" || !payload.title.trim()) {
+      return NextResponse.json({ error: "O título da tarefa é obrigatório." }, { status: 400 })
+    }
+
+    const { data, error } = await supabase.from("board_cards").insert(payload).select(taskColumns).single()
+
+    if (error || !data) {
+      return NextResponse.json({ error: error?.message ?? "Não foi possível salvar a tarefa." }, { status: 400 })
+    }
+
+    return NextResponse.json({ task: data })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro ao criar tarefa."
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: message }, { status: message === "Não autenticado." ? 401 : 500 })
   }
 }
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { supabaseUrl, serviceRoleKey } = getConfig()
-    const body = (await request.json()) as {
-      id?: string
-      userId?: string
-      changes?: Record<string, unknown>
-    }
+    const { supabase, user } = await requireAuthenticatedUser(request)
+    const body = (await request.json()) as TaskPatchBody
 
-    if (!body.id || !body.userId || !body.changes) {
+    if (!body.id || !body.changes) {
       return NextResponse.json({ error: "Dados da tarefa inválidos." }, { status: 400 })
     }
 
-    const response = await fetch(
-      `${supabaseUrl}/rest/v1/board_cards?id=eq.${encodeURIComponent(body.id)}&user_id=eq.${encodeURIComponent(body.userId)}`,
-      {
-        method: "PATCH",
-        headers: jsonHeaders(serviceRoleKey),
-        body: JSON.stringify(body.changes),
-      }
-    )
+    const sanitizedChanges = sanitizeTaskPayload(body.changes)
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      return NextResponse.json(
-        { error: errorText || "Não foi possível atualizar a tarefa." },
-        { status: response.status }
-      )
+    if (Object.keys(sanitizedChanges).length === 0) {
+      return NextResponse.json({ error: "Nenhum campo válido da tarefa foi enviado." }, { status: 400 })
     }
 
-    const rows = (await response.json()) as Array<Record<string, unknown>>
-    return NextResponse.json({ task: rows[0] ?? null })
+    const { data, error } = await supabase
+      .from("board_cards")
+      .update(sanitizedChanges)
+      .eq("id", body.id)
+      .eq("user_id", user.id)
+      .select(taskColumns)
+      .maybeSingle()
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
+
+    if (!data) {
+      return NextResponse.json({ error: "Tarefa não encontrada ou sem permissão." }, { status: 404 })
+    }
+
+    return NextResponse.json({ task: data })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro ao atualizar tarefa."
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: message }, { status: message === "Não autenticado." ? 401 : 500 })
   }
 }

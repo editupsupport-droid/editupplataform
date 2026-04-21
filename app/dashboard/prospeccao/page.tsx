@@ -6,40 +6,40 @@ import { Lock, Play, Clock, BookOpen, ArrowRight, Crown, Instagram, MessageCircl
 const modules = [
   {
     id: 1,
-    title: "Preparando seu Perfil para Vender",
-    description: "Otimize sua bio, destaques e feed para atrair clientes",
+    title: "Montando um perfil que vende",
+    description: "Otimize sua bio, seus destaques e seu feed para atrair clientes",
     lessons: 4,
     duration: "35 min",
     locked: true,
   },
   {
     id: 2,
-    title: "Identificando Clientes Ideais",
-    description: "Como encontrar e qualificar potenciais clientes",
+    title: "Encontrando clientes ideais",
+    description: "Como encontrar e qualificar leads melhores",
     lessons: 5,
     duration: "45 min",
     locked: true,
   },
   {
     id: 3,
-    title: "Abordagem que Converte",
-    description: "Scripts e técnicas para primeira mensagem",
+    title: "Prospecção que converte",
+    description: "Scripts e técnicas para a sua primeira mensagem",
     lessons: 6,
     duration: "55 min",
     locked: true,
   },
   {
     id: 4,
-    title: "Negociação e Fechamento",
-    description: "Como apresentar proposta e fechar o contrato",
+    title: "Negociação e fechamento",
+    description: "Como apresentar sua oferta e fechar negócio",
     lessons: 5,
     duration: "50 min",
     locked: true,
   },
   {
     id: 5,
-    title: "Fidelização de Clientes",
-    description: "Transforme clientes em parceiros recorrentes",
+    title: "Retenção de clientes",
+    description: "Transforme clientes em parcerias recorrentes",
     lessons: 4,
     duration: "40 min",
     locked: true,
@@ -49,23 +49,23 @@ const modules = [
 const benefits = [
   {
     icon: Target,
-    title: "Prospecção Ativa",
+    title: "Prospecção ativa",
     description: "Aprenda a ir atrás dos clientes certos",
   },
   {
     icon: MessageCircle,
-    title: "Scripts Prontos",
-    description: "Modelos de mensagem testados e aprovados",
+    title: "Scripts prontos",
+    description: "Modelos de mensagem já testados na prática",
   },
   {
     icon: Users,
     title: "Networking",
-    description: "Construa uma rede de contatos valiosa",
+    description: "Construa uma rede de contatos mais valiosa",
   },
   {
     icon: Instagram,
-    title: "Instagram Otimizado",
-    description: "Perfil que vende por você 24h",
+    title: "Instagram otimizado",
+    description: "Um perfil que vende por você 24/7",
   },
 ]
 
@@ -78,7 +78,7 @@ export default function ProspeccaoPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground md:text-3xl">Prospecção no Instagram</h1>
         <p className="mt-1 text-muted-foreground">
-          Conteúdo em produção para complementar a trilha de crescimento do editor
+          Conteúdo em desenvolvimento para apoiar o crescimento do editor e a aquisição de clientes
         </p>
       </div>
 
@@ -93,13 +93,13 @@ export default function ProspeccaoPage() {
               Curso em produção
             </h3>
             <p className="mt-1 text-muted-foreground">
-              Este curso está em produção e será disponibilizado primeiro para usuários do plano Essential.
+              Este curso está em produção e será liberado primeiro para usuários Essential.
             </p>
           </div>
           <Link href="/dashboard/planos">
             <Button className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
               <Crown className="h-4 w-4" />
-              Fazer Upgrade
+              Fazer upgrade
             </Button>
           </Link>
         </CardContent>
@@ -151,7 +151,7 @@ export default function ProspeccaoPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-foreground">4h+</p>
-              <p className="text-sm text-muted-foreground">De conteúdo</p>
+              <p className="text-sm text-muted-foreground">de conteúdo</p>
             </div>
           </CardContent>
         </Card>
@@ -159,7 +159,7 @@ export default function ProspeccaoPage() {
 
       {/* Modules */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-foreground">Módulos do Curso</h2>
+        <h2 className="text-lg font-semibold text-foreground">Módulos do curso</h2>
         {modules.map((module, index) => (
           <Card key={module.id} className="border-border bg-card opacity-75">
             <CardContent className="flex items-center gap-4 p-4">
@@ -195,14 +195,14 @@ export default function ProspeccaoPage() {
       <Card className="border-border bg-card">
         <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
           <h3 className="text-xl font-semibold text-foreground">
-            Pare de esperar clientes caírem do céu
+            Pare de esperar os clientes aparecerem do nada
           </h3>
           <p className="max-w-md text-muted-foreground">
-            A estrutura está sendo finalizada para entregar um material mais completo sobre prospecção e fechamento.
+            A estrutura está sendo finalizada para entregar um sistema de prospecção mais forte e completo.
           </p>
           <Link href="/dashboard/planos">
             <Button className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
-              Ver Planos
+              Ver planos
               <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>

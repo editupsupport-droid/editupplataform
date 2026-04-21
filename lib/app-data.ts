@@ -2,6 +2,7 @@ export type PlanId = "free" | "starter" | "essential"
 export type JobStatus = "open" | "found" | "cancelled"
 
 export type ContactMethod = "phone" | "email" | "instagram"
+export type ProfileLanguage = "en" | "pt-BR" | "es"
 
 export type VideoStyle = "long-form" | "short-form"
 
@@ -18,6 +19,7 @@ export interface EditorProfile {
   professionalTitle: string
   bio: string
   location: string
+  language: ProfileLanguage
   slug: string
   bannerUrl: string
   photoUrl: string
@@ -47,6 +49,7 @@ export interface JobPost {
   salary: string
   description: string
   contact: string
+  publishedById?: string
   publishedBy: string
   status: JobStatus
   createdAt: string
@@ -69,6 +72,12 @@ export const PLAN_LABELS: Record<PlanId, string> = {
   essential: "Essential",
 }
 
+const DASHBOARD_ACCESS_BY_PLAN: Record<PlanId, string[]> = {
+  free: ["/dashboard/calculadora", "/dashboard/planos"],
+  starter: ["/dashboard/calculadora", "/dashboard/pack", "/dashboard/planos"],
+  essential: ["/dashboard"],
+}
+
 export const EDIT_TOOL_LABELS: Record<EditTool, string> = {
   "adobe-premiere-pro": "Adobe Premiere Pro",
   photoshop: "Photoshop",
@@ -85,8 +94,14 @@ export const VIDEO_STYLE_LABELS: Record<VideoStyle, string> = {
 
 export const CONTACT_METHOD_LABELS: Record<ContactMethod, string> = {
   phone: "Telefone",
-  email: "E-mail",
+  email: "Email",
   instagram: "Instagram",
+}
+
+export const PROFILE_LANGUAGE_LABELS: Record<ProfileLanguage, string> = {
+  en: "Inglês",
+  "pt-BR": "Português",
+  es: "Espanhol",
 }
 
 export const planMeets = (currentPlan: PlanId, requiredPlan: PlanId) => {
@@ -98,6 +113,9 @@ export const planMeets = (currentPlan: PlanId, requiredPlan: PlanId) => {
 
   return levels[currentPlan] >= levels[requiredPlan]
 }
+
+export const canAccessDashboardPath = (pathname: string, plan: PlanId) =>
+  DASHBOARD_ACCESS_BY_PLAN[plan].some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
 
 export const isPublisherEmail = (email: string) =>
   PUBLISHER_EMAILS.includes(email.toLowerCase() as (typeof PUBLISHER_EMAILS)[number])
@@ -133,9 +151,10 @@ export const uniqueSlug = (base: string, existingSlugs: string[], fallback = "ed
 
 export const createDefaultProfile = (name: string, email: string, existingSlugs: string[]): EditorProfile => ({
   fullName: name,
-  professionalTitle: "Editor de vídeo",
+  professionalTitle: "Editor de video",
   bio: "",
   location: "",
+  language: "pt-BR",
   slug: uniqueSlug(name || email.split("@")[0], existingSlugs, email.split("@")[0]),
   bannerUrl: "",
   photoUrl: "",
@@ -177,7 +196,7 @@ export const serializeVideoUrls = (videoUrls: string[]) => {
 
 export const parseBannerAssets = (rawValue: unknown) => {
   if (typeof rawValue !== "string" || !rawValue.trim()) {
-    return { bannerUrl: "", photoUrl: "" }
+    return { bannerUrl: "", photoUrl: "", language: "pt-BR" as ProfileLanguage }
   }
 
   try {
@@ -186,6 +205,10 @@ export const parseBannerAssets = (rawValue: unknown) => {
       return {
         bannerUrl: typeof parsed.bannerUrl === "string" ? parsed.bannerUrl : "",
         photoUrl: typeof parsed.photoUrl === "string" ? parsed.photoUrl : "",
+        language:
+          parsed.language === "pt-BR" || parsed.language === "es" || parsed.language === "en"
+            ? (parsed.language as ProfileLanguage)
+            : "pt-BR",
       }
     }
   } catch {}
@@ -193,17 +216,19 @@ export const parseBannerAssets = (rawValue: unknown) => {
   return {
     bannerUrl: rawValue,
     photoUrl: "",
+    language: "pt-BR" as ProfileLanguage,
   }
 }
 
-export const serializeBannerAssets = (bannerUrl: string, photoUrl: string) => {
-  if (!photoUrl.trim()) {
+export const serializeBannerAssets = (bannerUrl: string, photoUrl: string, language: ProfileLanguage = "pt-BR") => {
+  if (!photoUrl.trim() && language === "pt-BR") {
     return bannerUrl.trim()
   }
 
   return JSON.stringify({
     bannerUrl: bannerUrl.trim(),
     photoUrl: photoUrl.trim(),
+    language,
   })
 }
 
@@ -248,28 +273,30 @@ export const seededUsers: AppUser[] = seededUsersBase.reduce<AppUser[]>((acc, us
 export const seededJobs: JobPost[] = [
   {
     id: "job-1",
-    title: "Editor de Shorts para infoprodutor",
-    company: "Agência Creator Lab",
-    location: "Remoto",
+    title: "Short-Form Video Editor for Info Product Brand",
+    company: "Creator Lab Agency",
+    location: "Remote",
     format: "Freelance",
-    salary: "R$ 1.500 a R$ 2.500 / mês",
+    salary: "$300 to $500 / month",
     description:
-      "Precisamos de um editor com ritmo dinâmico para 20 shorts por mês, com legenda e cortes orientados a retenção.",
+      "Looking for a fast-paced editor for 20 shorts per month, with captions and retention-focused cuts.",
     contact: "@creatorlab.jobs",
+    publishedById: "seed-murilo",
     publishedBy: "muriloeditor2023@gmail.com",
     status: "open",
     createdAt: "2026-04-13T10:00:00.000Z",
   },
   {
     id: "job-2",
-    title: "Editor Long Form para canal no YouTube",
-    company: "Estúdio Norte",
-    location: "Híbrido / Recife",
-    format: "Contrato PJ",
-    salary: "A combinar",
+    title: "Long-Form Editor for YouTube Channel",
+    company: "North Studio",
+    location: "Hybrid / Recife",
+    format: "Contract",
+    salary: "To be discussed",
     description:
-      "Buscamos editor para vídeos de 8 a 20 minutos com montagem, sound design e organização de fluxo semanal.",
+      "Seeking an editor for 8 to 20 minute videos with editing, sound design, and organized weekly delivery.",
     contact: "contato@estudionorte.com",
+    publishedById: "seed-marinho",
     publishedBy: "marinhojose1103@gmail.com",
     status: "open",
     createdAt: "2026-04-13T11:00:00.000Z",

@@ -1,143 +1,109 @@
 import { NextRequest, NextResponse } from "next/server"
+import { requireAuthenticatedUser } from "@/lib/supabase-server"
 
 export const runtime = "nodejs"
+const clientColumns = "id,user_id,name,phone,country_code,edit_level,average_duration,frequency,drive_link,created_at,updated_at"
 
-const getConfig = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("Supabase não configurado.")
-  }
-
-  return { supabaseUrl, serviceRoleKey }
+type ClientBody = {
+  id?: string
+  name?: string
+  phone?: string
+  countryCode?: string
+  editLevel?: string
+  averageDuration?: number
+  frequency?: string
+  driveLink?: string
 }
-
-const headers = (serviceRoleKey: string) => ({
-  apikey: serviceRoleKey,
-  Authorization: `Bearer ${serviceRoleKey}`,
-  "Content-Type": "application/json",
-  Prefer: "return=representation",
-})
 
 export async function GET(request: NextRequest) {
   try {
-    const { supabaseUrl, serviceRoleKey } = getConfig()
-    const userId = request.nextUrl.searchParams.get("userId")
+    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { data, error } = await supabase
+      .from("clients")
+      .select(clientColumns)
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
 
-    if (!userId) {
-      return NextResponse.json({ error: "Usuário inválido." }, { status: 400 })
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 403 })
     }
 
-    const response = await fetch(
-      `${supabaseUrl}/rest/v1/clients?user_id=eq.${encodeURIComponent(userId)}&select=*&order=created_at.desc`,
-      {
-        headers: {
-          apikey: serviceRoleKey,
-          Authorization: `Bearer ${serviceRoleKey}`,
-        },
-        cache: "no-store",
-      }
-    )
-
-    if (!response.ok) {
-      return NextResponse.json({ error: "Não foi possível carregar os clientes." }, { status: response.status })
-    }
-
-    const clients = (await response.json()) as Array<Record<string, unknown>>
-    return NextResponse.json({ clients })
+    return NextResponse.json({ clients: data ?? [] })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro ao carregar clientes."
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: message }, { status: message === "Não autenticado." ? 401 : 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { supabaseUrl, serviceRoleKey } = getConfig()
-    const body = (await request.json()) as {
-      id?: string
-      userId?: string
-      name?: string
-      phone?: string
-      countryCode?: string
-      editLevel?: string
-      averageDuration?: number
-      frequency?: string
-      driveLink?: string
-    }
+    const { supabase, user } = await requireAuthenticatedUser(request)
+    const body = (await request.json()) as ClientBody
 
-    if (!body.userId || !body.name) {
+    if (!body.name?.trim()) {
       return NextResponse.json({ error: "Dados do cliente inválidos." }, { status: 400 })
     }
 
     const payload = {
-      user_id: body.userId,
-      name: body.name,
-      phone: body.phone ?? "",
-      country_code: body.countryCode ?? "+55",
-      edit_level: body.editLevel ?? "simples",
+      user_id: user.id,
+      name: body.name.trim(),
+      phone: body.phone?.trim() ?? "",
+      country_code: body.countryCode?.trim() ?? "+55",
+      edit_level: body.editLevel?.trim() ?? "simples",
       average_duration: body.averageDuration ?? 15,
-      frequency: body.frequency ?? "",
-      drive_link: body.driveLink ?? "",
+      frequency: body.frequency?.trim() ?? "",
+      drive_link: body.driveLink?.trim() ?? "",
     }
 
-    const url = body.id
-      ? `${supabaseUrl}/rest/v1/clients?id=eq.${encodeURIComponent(body.id)}&user_id=eq.${encodeURIComponent(body.userId)}`
-      : `${supabaseUrl}/rest/v1/clients`
+    const query = body.id
+      ? supabase.from("clients").update(payload).eq("id", body.id).eq("user_id", user.id).select(clientColumns).maybeSingle()
+      : supabase.from("clients").insert(payload).select(clientColumns).single()
 
-    const response = await fetch(url, {
-      method: body.id ? "PATCH" : "POST",
-      headers: headers(serviceRoleKey),
-      body: JSON.stringify(payload),
-    })
+    const { data, error } = await query
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      return NextResponse.json({ error: errorText || "Não foi possível salvar o cliente." }, { status: response.status })
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
-    const rows = (await response.json()) as Array<Record<string, unknown>>
-    const client = rows[0]
-
-    if (!client) {
-      return NextResponse.json({ error: "Cliente não retornado pelo banco." }, { status: 500 })
+    if (!data) {
+      return NextResponse.json({ error: "Cliente não encontrado para atualização." }, { status: 404 })
     }
 
-    return NextResponse.json({ client })
+    return NextResponse.json({ client: data })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro ao salvar cliente."
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: message }, { status: message === "Não autenticado." ? 401 : 500 })
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
-    const { supabaseUrl, serviceRoleKey } = getConfig()
-    const { id, userId } = (await request.json()) as { id?: string; userId?: string }
+    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { id } = (await request.json()) as { id?: string }
 
-    if (!id || !userId) {
+    if (!id) {
       return NextResponse.json({ error: "Cliente inválido." }, { status: 400 })
     }
 
-    const response = await fetch(
-      `${supabaseUrl}/rest/v1/clients?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(userId)}`,
-      {
-        method: "DELETE",
-        headers: {
-          apikey: serviceRoleKey,
-          Authorization: `Bearer ${serviceRoleKey}`,
-        },
-      }
-    )
+    const { data, error } = await supabase
+      .from("clients")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .select("id")
+      .maybeSingle()
 
-    if (!response.ok) {
-      return NextResponse.json({ error: "Não foi possível remover o cliente." }, { status: response.status })
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
+
+    if (!data) {
+      return NextResponse.json({ error: "Cliente não encontrado ou sem permissão." }, { status: 404 })
     }
 
     return NextResponse.json({ success: true })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro ao remover cliente."
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: message }, { status: message === "Não autenticado." ? 401 : 500 })
   }
 }

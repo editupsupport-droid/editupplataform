@@ -32,9 +32,9 @@ export default function ConfiguracoesPage() {
     <div className="mx-auto max-w-3xl space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground md:text-3xl">Configurações</h1>
+        <h1 className="text-2xl font-bold text-foreground md:text-3xl">Settings</h1>
         <p className="mt-1 text-muted-foreground">
-          Gerencie suas preferências de conta e notificações
+          Manage your account and notification preferences
         </p>
       </div>
 
@@ -43,15 +43,15 @@ export default function ConfiguracoesPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-foreground">
             <Lock className="h-5 w-5" />
-            Informações da Conta
+            Account Information
           </CardTitle>
           <CardDescription className="text-muted-foreground">
-            Atualize suas informações de login
+            Update your login details
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-foreground">E-mail</Label>
+            <Label htmlFor="email" className="text-foreground">Email</Label>
             <Input
               id="email"
               type="email"
@@ -60,30 +60,30 @@ export default function ConfiguracoesPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="current-password" className="text-foreground">Senha atual</Label>
+            <Label htmlFor="current-password" className="text-foreground">Current password</Label>
             <Input
               id="current-password"
               type="password"
-              placeholder="Digite sua senha atual"
+              placeholder="Enter your current password"
               className="border-border bg-input text-foreground placeholder:text-muted-foreground"
             />
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="new-password" className="text-foreground">Nova senha</Label>
+              <Label htmlFor="new-password" className="text-foreground">New password</Label>
               <Input
                 id="new-password"
                 type="password"
-                placeholder="Digite a nova senha"
+                placeholder="Enter the new password"
                 className="border-border bg-input text-foreground placeholder:text-muted-foreground"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirm-password" className="text-foreground">Confirmar nova senha</Label>
+              <Label htmlFor="confirm-password" className="text-foreground">Confirm new password</Label>
               <Input
                 id="confirm-password"
                 type="password"
-                placeholder="Confirme a nova senha"
+                placeholder="Confirm the new password"
                 className="border-border bg-input text-foreground placeholder:text-muted-foreground"
               />
             </div>
@@ -96,18 +96,18 @@ export default function ConfiguracoesPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-foreground">
             <MessageSquare className="h-5 w-5 text-primary" />
-            Notificações da Agenda via WhatsApp
+            WhatsApp Schedule Notifications
           </CardTitle>
           <CardDescription className="text-muted-foreground">
-            Receba lembretes de prazos de entrega pelo WhatsApp
+            Receive deadline reminders on WhatsApp
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label className="text-foreground">Ativar notificações WhatsApp</Label>
+              <Label className="text-foreground">Enable WhatsApp notifications</Label>
               <p className="text-sm text-muted-foreground">
-                Receba alertas quando o prazo de entrega estiver próximo
+                Receive alerts when a delivery deadline is approaching
               </p>
             </div>
             <Switch
@@ -123,7 +123,7 @@ export default function ConfiguracoesPage() {
               <div className="space-y-2">
                 <Label className="text-foreground flex items-center gap-2">
                   <Clock className="h-4 w-4" />
-                  Antecipar aviso em
+                  Remind me
                 </Label>
                 <Select
                   value={whatsappNotifications.antecedencia}
@@ -135,21 +135,21 @@ export default function ConfiguracoesPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
-                    <SelectItem value="15">15 minutos antes</SelectItem>
-                    <SelectItem value="30">30 minutos antes</SelectItem>
-                    <SelectItem value="60">1 hora antes</SelectItem>
-                    <SelectItem value="120">2 horas antes</SelectItem>
-                    <SelectItem value="180">3 horas antes</SelectItem>
+                    <SelectItem value="15">15 minutes before</SelectItem>
+                    <SelectItem value="30">30 minutes before</SelectItem>
+                    <SelectItem value="60">1 hour before</SelectItem>
+                    <SelectItem value="120">2 hours before</SelectItem>
+                    <SelectItem value="180">3 hours before</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  Você será notificado com essa antecedência antes do prazo de cada tarefa
+                  You will be notified this long before each task deadline
                 </p>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="whatsapp-number" className="text-foreground">
-                  Número do WhatsApp
+                  WhatsApp Number
                 </Label>
                 <div className="flex gap-2">
                   <div className="flex items-center gap-2 px-3 rounded-md border border-border bg-muted">
@@ -181,18 +181,18 @@ export default function ConfiguracoesPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-foreground">
             <Bell className="h-5 w-5" />
-            Notificações por E-mail
+            Email Notifications
           </CardTitle>
           <CardDescription className="text-muted-foreground">
-            Escolha quais notificações você deseja receber
+            Choose which notifications you want to receive
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label className="text-foreground">Notificações por e-mail</Label>
+              <Label className="text-foreground">Email notifications</Label>
               <p className="text-sm text-muted-foreground">
-                Receba avisos importantes sobre sua conta
+                Receive important account updates
               </p>
             </div>
             <Switch
@@ -204,9 +204,9 @@ export default function ConfiguracoesPage() {
           </div>
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label className="text-foreground">Atualizações de conteúdo</Label>
+              <Label className="text-foreground">Content updates</Label>
               <p className="text-sm text-muted-foreground">
-                Saiba quando novos presets ou aulas são adicionados
+                Know when new presets or lessons are added
               </p>
             </div>
             <Switch
@@ -218,9 +218,9 @@ export default function ConfiguracoesPage() {
           </div>
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label className="text-foreground">E-mails de marketing</Label>
+              <Label className="text-foreground">Marketing emails</Label>
               <p className="text-sm text-muted-foreground">
-                Receba dicas, promoções e novidades
+                Receive tips, promotions, and updates
               </p>
             </div>
             <Switch
@@ -238,21 +238,21 @@ export default function ConfiguracoesPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-destructive">
             <Trash2 className="h-5 w-5" />
-            Zona de Perigo
+            Danger Zone
           </CardTitle>
           <CardDescription className="text-muted-foreground">
-            Ações irreversíveis para sua conta
+            Irreversible actions for your account
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-foreground">Excluir conta</p>
+              <p className="font-medium text-foreground">Delete account</p>
               <p className="text-sm text-muted-foreground">
-                Todos os seus dados serão permanentemente removidos
+                All your data will be permanently removed
               </p>
             </div>
-            <Button variant="destructive">Excluir Conta</Button>
+            <Button variant="destructive">Delete Account</Button>
           </div>
         </CardContent>
       </Card>

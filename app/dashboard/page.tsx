@@ -1,208 +1,294 @@
 "use client"
 
 import Link from "next/link"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useEffect, useMemo, useState } from "react"
+import {
+  ArrowRight,
+  BellRing,
+  CalendarClock,
+  CircleDollarSign,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Calculator, Package, Video, Instagram, ArrowRight, Crown, TrendingUp, Users, Smile, MessageCircleMore } from "lucide-react"
-import { PLAN_LABELS } from "@/lib/app-data"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAppSession } from "@/components/app/app-provider"
+import { FeedbackBanner } from "@/components/dashboard/feedback-banner"
+import { PageEmptyState } from "@/components/dashboard/page-empty-state"
+import { PageLoadingState } from "@/components/dashboard/page-loading-state"
+import {
+  fetchFinanceTransactions,
+  fetchFixedExpenses,
+  fetchWorkspaceTasks,
+  getCachedFinanceTransactions,
+  getCachedFixedExpenses,
+  getCachedWorkspaceTasks,
+  subscribeWorkspaceSync,
+  type FinanceTransaction,
+  type FixedExpense,
+} from "@/lib/workspace-db"
+import { type WorkspaceTask } from "@/lib/workspace-store"
 
-const quickActions = [
-  {
-    title: "Calculadora de Preços",
-    description: "Calcule o valor ideal para seus projetos",
-    icon: Calculator,
-    href: "/dashboard/calculadora",
-    color: "bg-primary",
-  },
-  {
-    title: "Pack de Edição",
-    description: "Baixe presets e recursos de edição",
-    icon: Package,
-    href: "/dashboard/pack",
-    color: "bg-chart-2",
-  },
-  {
-    title: "Curso de Reels",
-    description: "Aprenda a criar Reels que viralizam",
-    icon: Video,
-    href: "/dashboard/curso-reels",
-    color: "bg-chart-3",
-    locked: true,
-  },
-  {
-    title: "Prospecção no Instagram",
-    description: "Conquiste clientes pelo Instagram",
-    icon: Instagram,
-    href: "/dashboard/prospeccao",
-    color: "bg-chart-4",
-    locked: true,
-  },
-]
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 0,
+  }).format(value)
 
-const stats = [
-  {
-    title: "Editores ativos",
-    value: "+28",
-    change: "Comunidade em crescimento",
-    icon: Users,
-  },
-  {
-    title: "Presets inclusos",
-    value: "+100",
-    change: "Entre presets, vídeos e efeitos",
-    icon: TrendingUp,
-  },
-  {
-    title: "Satisfação",
-    value: "82%",
-    change: "Base atual de usuários",
-    icon: Smile,
-  },
-]
+const formatDate = (date: string) =>
+  new Intl.DateTimeFormat("pt-BR", {
+    month: "short",
+    day: "numeric",
+  }).format(new Date(date))
 
 export default function DashboardPage() {
   const { currentUser } = useAppSession()
+  const [tarefas, setTarefas] = useState<WorkspaceTask[]>([])
+  const [transacoes, setTransacoes] = useState<FinanceTransaction[]>([])
+  const [gastosFixos, setGastosFixos] = useState<FixedExpense[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [feedbackError, setFeedbackError] = useState("")
+
+  useEffect(() => {
+    if (!currentUser) return
+
+    const cachedTasks = getCachedWorkspaceTasks(currentUser.id)
+    const cachedTransactions = getCachedFinanceTransactions(currentUser.id)
+    const cachedExpenses = getCachedFixedExpenses(currentUser.id)
+
+    if (cachedTasks) {
+      setTarefas(cachedTasks)
+    }
+
+    if (cachedTransactions) {
+      setTransacoes(cachedTransactions)
+    }
+
+    if (cachedExpenses) {
+      setGastosFixos(cachedExpenses)
+    }
+
+    if (cachedTasks || cachedTransactions || cachedExpenses) {
+      setIsLoading(false)
+    }
+
+    const syncDashboard = async (showLoader = false) => {
+      try {
+        if (showLoader) {
+          setIsLoading(true)
+        }
+
+        setFeedbackError("")
+
+        const [nextTasks, nextTransactions, nextExpenses] = await Promise.all([
+          fetchWorkspaceTasks(currentUser.id, { force: true }),
+          fetchFinanceTransactions(currentUser.id),
+          fetchFixedExpenses(currentUser.id),
+        ])
+
+        setTarefas(nextTasks)
+        setTransacoes(nextTransactions)
+        setGastosFixos(nextExpenses)
+      } catch (error) {
+        console.error(error)
+        setFeedbackError(error instanceof Error ? error.message : "Não foi possível carregar o dashboard.")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (!cachedTasks && !cachedTransactions && !cachedExpenses) {
+      void syncDashboard(true)
+    } else {
+      void syncDashboard()
+    }
+
+    return subscribeWorkspaceSync(() => {
+      const nextTasks = getCachedWorkspaceTasks(currentUser.id)
+      const nextTransactions = getCachedFinanceTransactions(currentUser.id)
+      const nextExpenses = getCachedFixedExpenses(currentUser.id)
+
+      if (nextTasks) {
+        setTarefas(nextTasks)
+      }
+
+      if (nextTransactions) {
+        setTransacoes(nextTransactions)
+      }
+
+      if (nextExpenses) {
+        setGastosFixos(nextExpenses)
+      }
+
+      setIsLoading(false)
+    })
+  }, [currentUser])
+
+  const dashboardSummary = useMemo(() => {
+    const totalEntradas = transacoes
+      .filter((item) => item.tipo === "entrada")
+      .reduce((sum, item) => sum + item.valor, 0)
+
+    const totalSaidas = transacoes
+      .filter((item) => item.tipo === "saida")
+      .reduce((sum, item) => sum + item.valor, 0)
+
+    const totalFixos = gastosFixos.reduce((sum, item) => sum + item.valor, 0)
+    const saldoLiquido = totalEntradas - totalSaidas - totalFixos
+
+    const pendingTasks = tarefas.filter((task) => task.colunaId !== "concluido")
+    const waitingApproval = tarefas.filter((task) => task.colunaId === "waiting-response")
+    const revisionTasks = tarefas.filter((task) => task.statusCliente === "refazendo")
+    const unreadNotifications = tarefas.filter(
+      (task) => task.statusCliente && task.statusCliente !== "pendente" && !task.notificationRead
+    )
+
+    const nextDeadline = [...pendingTasks]
+      .filter((task) => task.prazo)
+      .sort((a, b) => new Date(a.prazo).getTime() - new Date(b.prazo).getTime())[0]
+
+    return {
+      saldoLiquido,
+      pendingTasks,
+      waitingApproval,
+      revisionTasks,
+      unreadNotifications,
+      nextDeadline,
+    }
+  }, [gastosFixos, tarefas, transacoes])
+
+  const highlightCards = [
+    {
+      title: "O que pede atenção",
+      value: `${dashboardSummary.waitingApproval.length + dashboardSummary.revisionTasks.length}`,
+      description:
+        dashboardSummary.revisionTasks.length > 0
+          ? "Tarefas com pedido de ajuste ou aguardando resposta do cliente."
+          : "Nada urgente no momento. O fluxo está sob controle.",
+      icon: BellRing,
+      href: "/dashboard/notificacoes",
+      cta: "Abrir notificações",
+    },
+    {
+      title: "Próxima entrega",
+      value: dashboardSummary.nextDeadline ? formatDate(dashboardSummary.nextDeadline.prazo) : "Sem prazo",
+      description: dashboardSummary.nextDeadline
+        ? `${dashboardSummary.nextDeadline.titulo} para ${dashboardSummary.nextDeadline.clienteNome}`
+        : "Adicione prazos nas tarefas para esta visão ficar mais útil.",
+      icon: CalendarClock,
+      href: "/dashboard/kanban",
+      cta: "Abrir agenda",
+    },
+    {
+      title: "Saldo líquido",
+      value: formatCurrency(dashboardSummary.saldoLiquido),
+      description:
+        dashboardSummary.saldoLiquido < 0
+          ? "Você gastou mais do que entrou após os custos fixos."
+          : "O que sobra depois dos gastos variáveis e fixos.",
+      icon: CircleDollarSign,
+      href: "/dashboard/financeiro",
+      cta: "Abrir finanças",
+    },
+  ]
+
+  const recentTasks = useMemo(
+    () =>
+      [...tarefas]
+        .sort((a, b) => new Date(b.updatedAt ?? 0).getTime() - new Date(a.updatedAt ?? 0).getTime())
+        .slice(0, 4),
+    [tarefas]
+  )
 
   if (!currentUser) return null
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground md:text-3xl">
-          Bem-vindo de volta!
-        </h1>
-        <p className="mt-1 text-muted-foreground">
-          Aqui está um resumo da sua atividade e acesso rápido às ferramentas.
+        <h1 className="text-3xl font-semibold text-foreground">Visão geral</h1>
+        <p className="mt-2 max-w-2xl text-muted-foreground">
+          Só o essencial: o que pede atenção, o que vem a seguir e como está o caixa.
         </p>
       </div>
 
-      {/* Plan Banner */}
-      <Card className="border-primary/50 bg-gradient-to-r from-primary/10 to-primary/5">
-        <CardContent className="flex flex-col items-start justify-between gap-4 p-6 md:flex-row md:items-center">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20">
-              <Crown className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground">Plano {PLAN_LABELS[currentUser.plan]}</h3>
-              <p className="text-sm text-muted-foreground">
-                {currentUser.plan === "free"
-                  ? "Você já tem a calculadora liberada e pode escolher seu plano quando quiser."
-                  : currentUser.plan === "starter"
-                    ? "Você já pode acessar pack, perfil público e área de vagas."
-                    : "Seu plano Essential já libera todos os recursos atuais da plataforma."}
-              </p>
-            </div>
-          </div>
-          <Link href="/dashboard/planos">
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-              {currentUser.plan === "essential" ? "Gerenciar plano" : "Ver Planos"}
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </Link>
-        </CardContent>
-      </Card>
+      <FeedbackBanner message={feedbackError} type="error" />
 
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
-        {stats.map((stat) => (
-          <Card key={stat.title} className="border-border bg-card">
-            <CardContent className="flex items-center gap-4 p-6">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-secondary">
-                <stat.icon className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{stat.title}</p>
-                <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-                <p className="text-xs text-muted-foreground">{stat.change}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {highlightCards.map((item) => {
+          const Icon = item.icon
 
-      {/* Quick Actions */}
-      <div>
-        <h2 className="mb-4 text-lg font-semibold text-foreground">Acesso Rápido</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {quickActions.map((action) => (
-            <Link key={action.title} href={action.href}>
-              <Card className="group h-full cursor-pointer border-border bg-card transition-all hover:border-primary/50">
-                <CardHeader>
-                  <div className={`mb-2 flex h-10 w-10 items-center justify-center rounded-lg ${action.color}`}>
-                    <action.icon className="h-5 w-5 text-primary-foreground" />
+          return (
+            <Card key={item.title} className="border-border bg-card/80">
+              <CardHeader className="space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <CardDescription className="text-muted-foreground">{item.title}</CardDescription>
+                    <CardTitle className="mt-2 text-2xl font-semibold text-foreground">{item.value}</CardTitle>
                   </div>
-                  <CardTitle className="flex items-center gap-2 text-base text-foreground">
-                    {action.title}
-                    {action.locked && (
-                      <span className="rounded bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
-                        Em produção
-                      </span>
-                    )}
-                  </CardTitle>
-                  <CardDescription className="text-muted-foreground">
-                    {action.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <span className="inline-flex items-center text-sm text-primary opacity-0 transition-opacity group-hover:opacity-100">
-                    Acessar <ArrowRight className="ml-1 h-4 w-4" />
-                  </span>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
+                  <div className="rounded-2xl border border-border bg-background p-2.5">
+                    <Icon className="h-5 w-5 text-foreground" />
+                  </div>
+                </div>
+                <p className="text-sm leading-6 text-muted-foreground">{item.description}</p>
+              </CardHeader>
+              <CardContent>
+                <Link href={item.href}>
+                  <Button variant="ghost" className="h-auto px-0 text-sm text-foreground hover:bg-transparent">
+                    {item.cta}
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
 
       <Card className="border-border bg-card">
         <CardHeader>
-          <CardTitle className="text-foreground">Comunidade Exclusiva</CardTitle>
+          <CardTitle className="text-foreground">Movimentação recente</CardTitle>
           <CardDescription className="text-muted-foreground">
-            Entre nos grupos exclusivos para networking, suporte e oportunidades.
+            As entregas que tiveram atualização por último.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-3">
-          <Link href="https://discord.gg/P4x7DKEGnJ" target="_blank">
-            <Button variant="outline" className="border-border">
-              <MessageCircleMore className="mr-2 h-4 w-4" />
-              Comunidade Discord
-            </Button>
-          </Link>
-          <Link href="https://chat.whatsapp.com/GCyIOZBGhYKAJ6sLvpYEUf?mode=gi_t" target="_blank">
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-              Grupo WhatsApp
-            </Button>
-          </Link>
-        </CardContent>
-      </Card>
+        <CardContent className="space-y-3">
+          {isLoading && (
+            <PageLoadingState
+              title="Carregando visão geral"
+              description="Estamos organizando as tarefas e os números mais recentes para você."
+            />
+          )}
 
-      {/* Recent Activity */}
-      <Card className="border-border bg-card">
-        <CardHeader>
-          <CardTitle className="text-foreground">Atividade Recente</CardTitle>
-          <CardDescription className="text-muted-foreground">
-            Suas últimas ações na plataforma
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {[
-              { action: "Calculou preço de projeto", time: "Há 2 horas", type: "calculator" },
-              { action: "Baixou preset de transições", time: "Há 5 horas", type: "download" },
-              { action: "Atualizou perfil profissional", time: "Ontem", type: "profile" },
-            ].map((activity, index) => (
-              <div key={index} className="flex items-center gap-4 rounded-lg bg-secondary/50 p-3">
-                <div className="h-2 w-2 rounded-full bg-primary" />
-                <div className="flex-1">
-                  <p className="text-sm text-foreground">{activity.action}</p>
-                  <p className="text-xs text-muted-foreground">{activity.time}</p>
+          {!isLoading && recentTasks.length === 0 && (
+            <PageEmptyState
+              icon={<CalendarClock className="h-7 w-7" />}
+              title="Ainda não há movimentações"
+              description="Assim que você criar ou atualizar entregas, elas aparecem aqui para facilitar sua leitura do dia."
+              actionLabel="Abrir agenda"
+              actionHref="/dashboard/kanban"
+            />
+          )}
+
+          {!isLoading &&
+            recentTasks.map((task) => (
+              <div key={task.id} className="rounded-2xl border border-border bg-background p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-medium text-foreground">{task.titulo}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {task.clienteNome} {task.prazo ? `• prazo ${formatDate(task.prazo)}` : ""}
+                    </p>
+                  </div>
+                  <div className="rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
+                    {task.colunaId === "agenda" && "Agendado"}
+                    {task.colunaId === "em-producao" && "Em produção"}
+                    {task.colunaId === "waiting-response" && "Aguardando"}
+                    {task.colunaId === "refazendo" && "Refação"}
+                    {task.colunaId === "concluido" && "Concluído"}
+                  </div>
                 </div>
+                {task.descricao && <p className="mt-3 text-sm leading-6 text-muted-foreground">{task.descricao}</p>}
               </div>
             ))}
-          </div>
         </CardContent>
       </Card>
     </div>

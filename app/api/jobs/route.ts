@@ -1,131 +1,122 @@
 import { NextRequest, NextResponse } from "next/server"
+import { requireAuthenticatedUser } from "@/lib/supabase-server"
 
 export const runtime = "nodejs"
+const jobColumns =
+  "id,title,company,location,format,salary,description,contact,status,published_by,created_at,updated_at"
 
-const getConfig = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("Supabase não configurado.")
-  }
-
-  return { supabaseUrl, serviceRoleKey }
-}
-
-const baseHeaders = (serviceRoleKey: string) => ({
-  apikey: serviceRoleKey,
-  Authorization: `Bearer ${serviceRoleKey}`,
-})
-
-const jsonHeaders = (serviceRoleKey: string) => ({
-  ...baseHeaders(serviceRoleKey),
-  "Content-Type": "application/json",
-  Prefer: "return=representation",
-})
-
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const { supabaseUrl, serviceRoleKey } = getConfig()
-    const response = await fetch(
-      `${supabaseUrl}/rest/v1/job_posts?select=*&order=created_at.desc`,
-      {
-        headers: baseHeaders(serviceRoleKey),
-        cache: "no-store",
-      }
-    )
+    const { supabase } = await requireAuthenticatedUser(request)
+    const { data, error } = await supabase.from("job_posts").select(jobColumns).order("created_at", { ascending: false })
 
-    if (!response.ok) {
-      return NextResponse.json({ error: "Não foi possível carregar as vagas." }, { status: response.status })
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 403 })
     }
 
-    const jobs = (await response.json()) as Array<Record<string, unknown>>
-    return NextResponse.json({ jobs })
+    return NextResponse.json({ jobs: data ?? [] })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro ao carregar vagas."
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: message }, { status: message === "Não autenticado." ? 401 : 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { supabaseUrl, serviceRoleKey } = getConfig()
+    const { supabase, user } = await requireAuthenticatedUser(request)
     const body = (await request.json()) as Record<string, unknown>
-
-    const response = await fetch(`${supabaseUrl}/rest/v1/job_posts`, {
-      method: "POST",
-      headers: jsonHeaders(serviceRoleKey),
-      body: JSON.stringify(body),
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      return NextResponse.json({ error: errorText || "Não foi possível publicar a vaga." }, { status: response.status })
+    const payload = {
+      title: body.title,
+      company: body.company,
+      location: body.location,
+      format: body.format,
+      salary: body.salary,
+      description: body.description,
+      contact: body.contact,
+      status: body.status ?? "open",
+      published_by: user.id,
     }
 
-    const rows = (await response.json()) as Array<Record<string, unknown>>
-    return NextResponse.json({ job: rows[0] ?? null })
+    const { data, error } = await supabase.from("job_posts").insert(payload).select(jobColumns).single()
+
+    if (error) {
+      const message = error.message.includes("row-level security")
+        ? "Seu usuário não tem permissão para publicar vagas."
+        : error.message
+      return NextResponse.json({ error: message }, { status: 400 })
+    }
+
+    if (!data) {
+      return NextResponse.json({ error: "Não foi possível publicar a vaga." }, { status: 400 })
+    }
+
+    return NextResponse.json({ job: data })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro ao publicar vaga."
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: message }, { status: message === "Não autenticado." ? 401 : 500 })
   }
 }
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { supabaseUrl, serviceRoleKey } = getConfig()
-    const { id, status, userId } = (await request.json()) as { id?: string; status?: string; userId?: string }
+    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { id, status } = (await request.json()) as { id?: string; status?: string }
 
-    if (!id || !status || !userId) {
+    if (!id || !status) {
       return NextResponse.json({ error: "Dados inválidos." }, { status: 400 })
     }
 
-    const response = await fetch(
-      `${supabaseUrl}/rest/v1/job_posts?id=eq.${encodeURIComponent(id)}&published_by=eq.${encodeURIComponent(userId)}`,
-      {
-        method: "PATCH",
-        headers: jsonHeaders(serviceRoleKey),
-        body: JSON.stringify({ status }),
-      }
-    )
+    const { data, error } = await supabase
+      .from("job_posts")
+      .update({ status })
+      .eq("id", id)
+      .eq("published_by", user.id)
+      .select(jobColumns)
+      .maybeSingle()
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      return NextResponse.json({ error: errorText || "Não foi possível atualizar a vaga." }, { status: response.status })
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
-    const rows = (await response.json()) as Array<Record<string, unknown>>
-    return NextResponse.json({ job: rows[0] ?? null })
+    if (!data) {
+      return NextResponse.json({ error: "Vaga não encontrada ou sem permissão." }, { status: 404 })
+    }
+
+    return NextResponse.json({ job: data })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro ao atualizar vaga."
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: message }, { status: message === "Não autenticado." ? 401 : 500 })
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
-    const { supabaseUrl, serviceRoleKey } = getConfig()
-    const { id, userId } = (await request.json()) as { id?: string; userId?: string }
+    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { id } = (await request.json()) as { id?: string }
 
-    if (!id || !userId) {
+    if (!id) {
       return NextResponse.json({ error: "Dados inválidos." }, { status: 400 })
     }
 
-    const response = await fetch(
-      `${supabaseUrl}/rest/v1/job_posts?id=eq.${encodeURIComponent(id)}&published_by=eq.${encodeURIComponent(userId)}`,
-      {
-        method: "DELETE",
-        headers: baseHeaders(serviceRoleKey),
-      }
-    )
+    const { data, error } = await supabase
+      .from("job_posts")
+      .delete()
+      .eq("id", id)
+      .eq("published_by", user.id)
+      .select("id")
+      .maybeSingle()
 
-    if (!response.ok) {
-      return NextResponse.json({ error: "Não foi possível remover a vaga." }, { status: response.status })
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
+
+    if (!data) {
+      return NextResponse.json({ error: "Vaga não encontrada ou sem permissão." }, { status: 404 })
     }
 
     return NextResponse.json({ success: true })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro ao remover vaga."
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: message }, { status: message === "Não autenticado." ? 401 : 500 })
   }
 }

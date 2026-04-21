@@ -13,11 +13,10 @@ export function Header() {
   const fallbackInitial = currentUser?.name?.trim().charAt(0).toUpperCase() ?? "A"
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-md">
+    <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/92">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 lg:px-8">
-        <Link href="/" className="flex items-center gap-2">
-          <img src="/placeholder-logo.svg" alt="Astherisch" className="h-8 w-auto" />
-          <span className="text-xl font-semibold text-foreground">Astherisch</span>
+        <Link href="/" className="flex items-center">
+          <img src="/logo.jpeg" alt="Astherisch" className="h-10 w-auto object-contain sm:h-12" />
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex">
@@ -27,8 +26,8 @@ export function Header() {
           <Link href="#pricing" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
             Planos
           </Link>
-          <Link href="#testimonials" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
-            Depoimentos
+          <Link href="#faq" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+            FAQ
           </Link>
         </nav>
 
@@ -53,7 +52,7 @@ export function Header() {
               </Link>
               <Link href="/cadastro">
                 <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-                  Começar Agora
+                  Começar
                 </Button>
               </Link>
             </>
@@ -90,17 +89,17 @@ export function Header() {
               Planos
             </Link>
             <Link
-              href="#testimonials"
+              href="#faq"
               className="text-sm text-muted-foreground transition-colors hover:text-foreground"
               onClick={() => setMobileMenuOpen(false)}
             >
-              Depoimentos
+              FAQ
             </Link>
             <div className="flex flex-col gap-2 pt-4">
               {currentUser ? (
                 <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}>
                   <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
-                    Ir para dashboard
+                    Ir para o dashboard
                   </Button>
                 </Link>
               ) : (
@@ -112,7 +111,7 @@ export function Header() {
                   </Link>
                   <Link href="/cadastro">
                     <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
-                      Começar Agora
+                      Começar
                     </Button>
                   </Link>
                 </>

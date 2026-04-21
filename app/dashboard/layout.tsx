@@ -9,9 +9,11 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-background">
       <DashboardSidebar />
-      <main className="lg:pl-64">
-        <div className="min-h-screen p-4 pt-20 lg:p-8 lg:pt-8">
+      <main className="min-h-screen lg:pl-72">
+        <div className="min-h-screen px-4 pb-8 pt-20 lg:px-8 lg:pb-10 lg:pt-8">
+          <div className="mx-auto w-full max-w-[1360px]">
           <DashboardAccessGuard>{children}</DashboardAccessGuard>
+          </div>
         </div>
       </main>
     </div>

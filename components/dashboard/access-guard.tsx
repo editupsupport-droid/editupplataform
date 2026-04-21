@@ -6,27 +6,8 @@ import { usePathname, useRouter } from "next/navigation"
 import { Crown, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { planMeets } from "@/lib/app-data"
+import { canAccessDashboardPath } from "@/lib/app-data"
 import { useAppSession } from "@/components/app/app-provider"
-
-const canAccessPath = (pathname: string, plan: "free" | "starter" | "essential") => {
-  if (pathname.startsWith("/dashboard/calculadora") || pathname.startsWith("/dashboard/planos")) {
-    return true
-  }
-
-  if (plan === "free") {
-    return false
-  }
-
-  if (
-    pathname.startsWith("/dashboard/curso-reels") ||
-    pathname.startsWith("/dashboard/prospeccao")
-  ) {
-    return planMeets(plan, "essential")
-  }
-
-  return true
-}
 
 export function DashboardAccessGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -50,11 +31,12 @@ export function DashboardAccessGuard({ children }: { children: React.ReactNode }
     )
   }
 
-  if (canAccessPath(pathname, currentUser.plan)) {
+  if (canAccessDashboardPath(pathname, currentUser.plan)) {
     return <>{children}</>
   }
 
   const isFreeUser = currentUser.plan === "free"
+  const isStarterUser = currentUser.plan === "starter"
 
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-2xl items-center">
@@ -69,12 +51,14 @@ export function DashboardAccessGuard({ children }: { children: React.ReactNode }
           </div>
           <div className="space-y-2">
             <h1 className="text-2xl font-bold text-foreground">
-              {isFreeUser ? "Plano Free ativo" : "Conteúdo liberado em breve"}
+              {isFreeUser ? "Plano Free ativo" : isStarterUser ? "Plano Starter ativo" : "Área protegida"}
             </h1>
             <p className="text-muted-foreground">
               {isFreeUser
-                ? "Quem entra no plano Free começa com acesso à calculadora de valores. Para liberar o restante da plataforma, faça upgrade."
-                : "Os cursos de edição ainda estão em produção e serão liberados primeiro para o plano Essential."}
+                ? "No plano Free você tem acesso à calculadora de valores. Para liberar mais recursos, faça upgrade."
+                : isStarterUser
+                  ? "No plano Starter, o acesso fica restrito à calculadora de valores e ao pack de edição. Para liberar o restante da plataforma, faça upgrade para o Essential."
+                  : "Essa área está protegida pelo seu plano atual."}
             </p>
           </div>
           <div className="flex flex-col justify-center gap-3 sm:flex-row">
@@ -83,6 +67,13 @@ export function DashboardAccessGuard({ children }: { children: React.ReactNode }
                 Ir para calculadora
               </Button>
             </Link>
+            {isStarterUser && (
+              <Link href="/dashboard/pack">
+                <Button variant="outline" className="border-border">
+                  Abrir pack
+                </Button>
+              </Link>
+            )}
             <Link href="/dashboard/planos">
               <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
                 Ver planos

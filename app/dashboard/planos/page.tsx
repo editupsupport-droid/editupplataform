@@ -14,11 +14,11 @@ const plans = [
     name: "Free",
     price: "R$ 0",
     period: "",
-    description: "Plano automático para toda conta nova, com foco total na calculadora de valores.",
+    description: "Plano padrão para toda conta nova, com foco na calculadora de valores.",
     features: [
-      "Cadastro já entra no plano Free",
-      "Acesso somente à calculadora de valores",
-      "Upgrade quando quiser",
+      "Toda conta nova começa no Free",
+      "Acesso à calculadora de valores",
+      "Upgrade a qualquer momento",
     ],
     current: false,
   },
@@ -26,15 +26,13 @@ const plans = [
     id: "starter",
     name: "Starter",
     price: "R$ 20",
-    period: "único",
-    description: "Perfeito para quem está começando e quer organizar seus preços e ter recursos de qualidade.",
+    period: "pagamento único",
+    description: "Ideal para quem quer começar com o essencial e ter acesso prático sem complexidade.",
     features: [
-      "Calculadora de preços de vídeo",
-      "Pack de edição completo",
-      "Área de vagas para visualizar oportunidades",
-      "Página profissional pública",
-      "100+ presets e transições",
-      "Efeitos sonoros básicos",
+      "Calculadora de valores",
+      "Pack completo de edição",
+      "Acesso somente a esses dois recursos",
+      "Entrada simples e direta",
       "Acesso vitalício",
     ],
     current: false,
@@ -44,16 +42,16 @@ const plans = [
     name: "Essential",
     price: "R$ 80",
     period: "/mês",
-    description: "Para editores que querem dominar o mercado e escalar seus resultados.",
+    description: "Para quem quer acesso total à plataforma, mais estrutura e mais recursos no dia a dia.",
     features: [
-      "Tudo do plano Starter",
-      "Comunidade exclusiva",
-      "Avisos de novas vagas",
+      "Tudo do Starter",
+      "Acesso total à plataforma",
+      "Comunidade privada",
+      "Alertas de novas vagas",
       "Aulas semanais",
-      "Cursos de edição em produção",
-      "Atualizações mensais de conteúdo",
+      "Cursos e conteúdos completos",
+      "Acesso total ao Creative Cloud mensal",
       "Suporte prioritário",
-      "Certificado de conclusão",
     ],
     popular: true,
     current: false,
@@ -69,6 +67,10 @@ export default function PlanosPage() {
 
   const handlePlanChange = async (planId: PlanId) => {
     if (planId === currentUser.plan || planId === "free") return
+    if (currentUser.plan === "essential" && planId === "starter") {
+      setMessage("Quem já está no Essential não pode comprar o Starter por ser um plano inferior.")
+      return
+    }
     setSelectedPlan(planId)
 
     const response = await fetch("/api/stripe/checkout", {
@@ -98,9 +100,9 @@ export default function PlanosPage() {
     <div className="mx-auto max-w-4xl space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground md:text-3xl">Planos e Assinatura</h1>
+        <h1 className="text-2xl font-bold text-foreground md:text-3xl">Planos e cobrança</h1>
         <p className="mt-1 text-muted-foreground">
-          Escolha o plano ideal para sua carreira de editor
+          Escolha o plano certo para o seu momento como editor
         </p>
         {message && <p className="mt-2 text-sm text-destructive">{message}</p>}
       </div>
@@ -112,13 +114,13 @@ export default function PlanosPage() {
             <Crown className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h3 className="font-semibold text-foreground">Seu plano atual: {PLAN_LABELS[currentUser.plan]}</h3>
+            <h3 className="font-semibold text-foreground">Plano atual: {PLAN_LABELS[currentUser.plan]}</h3>
             <p className="text-sm text-muted-foreground">
               {currentUser.plan === "free"
-                ? "Sua conta entrou automaticamente no plano Free com acesso à calculadora."
+                ? "Sua conta começou automaticamente no Free com acesso à calculadora."
                 : currentUser.plan === "starter"
-                  ? "Você já tem calculadora, pack, perfil público e área de vagas."
-                  : "Você já tem acesso às vantagens do Starter, comunidade exclusiva e aviso de vagas."}
+                  ? "Você já tem acesso à calculadora de valores e ao pack de edição."
+                  : "Você já tem acesso total à plataforma, à comunidade privada e ao Creative Cloud mensal."}
             </p>
           </div>
         </CardContent>
@@ -175,7 +177,11 @@ export default function PlanosPage() {
                   variant="outline"
                   disabled
                 >
-                  Plano Atual
+                  Plano atual
+                </Button>
+              ) : currentUser.plan === "essential" && plan.id === "starter" ? (
+                <Button className="w-full" variant="outline" disabled>
+                  Plano inferior indisponível
                 </Button>
               ) : (
                 <div className="w-full space-y-2">
@@ -186,20 +192,20 @@ export default function PlanosPage() {
                     {plan.id === "free"
                       ? "Começar no Free"
                       : currentUser.plan === "free" && plan.id === "starter"
-                        ? "Comprar com cartão"
-                        : "Comprar com cartão"}
+                        ? "Pagar com cartão"
+                        : "Pagar com cartão"}
                   </Button>
                   {plan.id !== "free" && (
                     <Link href="https://wa.me/5581997985738" target="_blank" className="block">
                       <Button variant="outline" className="w-full border-border">
                         <MessageCircleMore className="mr-2 h-4 w-4" />
-                        Comprar com Pix
+                        Pagar com Pix
                       </Button>
                     </Link>
                   )}
                   {plan.id !== "free" && (
                     <p className="text-center text-xs text-muted-foreground">
-                      Escolha se quer comprar com cartão ou Pix.
+                      Escolha se prefere pagar com cartão ou Pix.
                     </p>
                   )}
                 </div>
@@ -213,11 +219,11 @@ export default function PlanosPage() {
         <CardHeader>
           <CardTitle className="text-foreground">Suporte</CardTitle>
           <CardDescription className="text-muted-foreground">
-            Se precisar de ajuda com pagamento, plano ou acesso, fale diretamente.
+            Se precisar de ajuda com pagamento, acesso ou planos, fale diretamente com o suporte.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p>E-mail: marinhojose1103@gmail.com</p>
+          <p>Email: editupsupport@gmail.com</p>
           <p>Telefone: 5581997985738</p>
         </CardContent>
       </Card>
@@ -225,21 +231,21 @@ export default function PlanosPage() {
       {/* FAQ */}
       <Card className="border-border bg-card">
         <CardHeader>
-          <CardTitle className="text-foreground">Perguntas Frequentes</CardTitle>
+          <CardTitle className="text-foreground">Perguntas frequentes</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {[
             {
               question: "Posso cancelar a qualquer momento?",
-              answer: "Sim! O plano Essential pode ser cancelado a qualquer momento. Você manterá acesso até o final do período pago.",
+              answer: "Sim. O plano Essential pode ser cancelado a qualquer momento, e o acesso continua até o fim do período pago.",
             },
             {
-              question: "Toda conta começa no plano Free?",
-              answer: "Sim. Quem cria conta entra automaticamente no plano Free e já pode usar a calculadora de valores.",
+              question: "Toda conta começa no Free?",
+              answer: "Sim. Toda conta nova começa automaticamente no Free e já pode usar a calculadora de valores.",
             },
             {
-              question: "Quem pode ver as vagas?",
-              answer: "A área de vagas fica disponível para usuários do Starter para cima. A publicação é restrita aos e-mails autorizados.",
+              question: "O que o Starter libera?",
+              answer: "O Starter libera somente a calculadora de valores e o pack de edição. Todo o restante fica no Essential.",
             },
           ].map((faq, index) => (
             <div key={index}>

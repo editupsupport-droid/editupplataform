@@ -9,15 +9,24 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Plus, User, Phone, Video, Calendar, Link2, MoreVertical, Pencil, Trash2, MessageCircleMore } from "lucide-react"
+import { Plus, User, Phone, Video, Calendar, Link2, MoreVertical, Pencil, Trash2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useAppSession } from "@/components/app/app-provider"
-import { deleteWorkspaceClient, fetchWorkspaceClients, subscribeWorkspaceSync, upsertWorkspaceClient } from "@/lib/workspace-db"
+import { FeedbackBanner } from "@/components/dashboard/feedback-banner"
+import { PageEmptyState } from "@/components/dashboard/page-empty-state"
+import { PageLoadingState } from "@/components/dashboard/page-loading-state"
+import {
+  deleteWorkspaceClient,
+  fetchWorkspaceClients,
+  getCachedWorkspaceClients,
+  subscribeWorkspaceSync,
+  upsertWorkspaceClient,
+} from "@/lib/workspace-db"
 import { WorkspaceClient } from "@/lib/workspace-store"
 
 const paises = [
   { codigo: "+55", pais: "Brasil", bandeira: "🇧🇷" },
-  { codigo: "+1", pais: "EUA", bandeira: "🇺🇸" },
+  { codigo: "+1", pais: "Estados Unidos", bandeira: "🇺🇸" },
   { codigo: "+351", pais: "Portugal", bandeira: "🇵🇹" },
   { codigo: "+34", pais: "Espanha", bandeira: "🇪🇸" },
   { codigo: "+44", pais: "Reino Unido", bandeira: "🇬🇧" },
@@ -29,36 +38,37 @@ const paises = [
 ]
 
 const frequencias = [
-  { value: "diaria", label: "Diária" },
+  { value: "diaria", label: "Diariamente" },
   { value: "dia-sim-dia-nao", label: "Dia sim, dia não" },
   { value: "3x-semana", label: "3x por semana" },
   { value: "2x-semana", label: "2x por semana" },
   { value: "semanal", label: "Semanal" },
   { value: "quinzenal", label: "Quinzenal" },
   { value: "mensal", label: "Mensal" },
-  { value: "sem-frequencia", label: "Sem frequência definida" },
+  { value: "sem-frequencia", label: "Sem frequência fixa" },
 ]
 
 const niveisEdicao = {
   simples: {
     label: "Simples",
-    descricao: "Legenda, correção de cor e cortes",
+    descricao: "Legendas, correção de cor e cortes",
     cor: "bg-blue-500/20 text-blue-400 border-blue-500/30"
   },
   medio: {
     label: "Médio",
-    descricao: "Legenda dinâmica, correção de cor e B-rolls",
+    descricao: "Legendas dinâmicas, correção de cor e B-roll",
     cor: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
   },
   profissional: {
     label: "Profissional",
-    descricao: "Tudo + Motion Design",
+    descricao: "Tudo isso mais motion design",
     cor: "bg-primary/20 text-primary border-primary/30"
   }
 }
 
 export default function ClientesPage() {
   const [clientes, setClientes] = useState<WorkspaceClient[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const { currentUser } = useAppSession()
   const [feedbackMessage, setFeedbackMessage] = useState("")
   const [feedbackError, setFeedbackError] = useState("")
@@ -71,28 +81,46 @@ export default function ClientesPage() {
     nome: "",
     telefone: "",
     codigoPais: "+55",
-    nivelEdicao: "" as "simples" | "medio" | "profissional" | "",
+    nivelEdicao: "simples" as "simples" | "medio" | "profissional" | "",
     duracaoMedia: 15,
-    frequencia: "",
+    frequencia: "sem-frequencia",
     linkDrive: ""
   })
 
   useEffect(() => {
     if (!currentUser) return
+    const cachedClients = getCachedWorkspaceClients(currentUser.id)
 
-    const syncClients = async () => {
+    if (cachedClients) {
+      setClientes(cachedClients)
+      setIsLoading(false)
+    }
+
+    const syncClients = async (showLoader = false) => {
       try {
+        if (showLoader) {
+          setIsLoading(true)
+        }
         setFeedbackError("")
-        setClientes(await fetchWorkspaceClients(currentUser.id))
+        setClientes(await fetchWorkspaceClients(currentUser.id, { force: true }))
       } catch (error) {
         console.error(error)
         setFeedbackError(error instanceof Error ? error.message : "Não foi possível carregar os clientes.")
+      } finally {
+        setIsLoading(false)
       }
     }
 
-    void syncClients()
+    if (!cachedClients) {
+      void syncClients(true)
+    }
+
     return subscribeWorkspaceSync(() => {
-      void syncClients()
+      const nextCachedClients = getCachedWorkspaceClients(currentUser.id)
+      if (nextCachedClients) {
+        setClientes(nextCachedClients)
+        setIsLoading(false)
+      }
     })
   }, [currentUser])
 
@@ -101,9 +129,9 @@ export default function ClientesPage() {
       nome: "",
       telefone: "",
       codigoPais: "+55",
-      nivelEdicao: "",
+      nivelEdicao: "simples",
       duracaoMedia: 15,
-      frequencia: "",
+      frequencia: "sem-frequencia",
       linkDrive: ""
     })
     setEditingCliente(null)
@@ -111,7 +139,10 @@ export default function ClientesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!currentUser) return
+    if (!currentUser) {
+      setFeedbackError("Faça login novamente antes de salvar um cliente.")
+      return
+    }
     setIsSaving(true)
     setFeedbackMessage("")
     setFeedbackError("")
@@ -119,13 +150,13 @@ export default function ClientesPage() {
     try {
       const savedClient = await upsertWorkspaceClient(currentUser.id, {
         id: editingCliente?.id ?? "",
-        nome: formData.nome,
-        telefone: formData.telefone,
+        nome: formData.nome.trim(),
+        telefone: formData.telefone.trim(),
         codigoPais: formData.codigoPais,
         nivelEdicao: formData.nivelEdicao as "simples" | "medio" | "profissional",
         duracaoMedia: formData.duracaoMedia,
         frequencia: formData.frequencia,
-        linkDrive: formData.linkDrive,
+        linkDrive: formData.linkDrive.trim(),
         createdAt: editingCliente?.createdAt ?? new Date().toISOString(),
       })
 
@@ -162,7 +193,10 @@ export default function ClientesPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!currentUser) return
+    if (!currentUser) {
+      setFeedbackError("Faça login novamente antes de remover um cliente.")
+      return
+    }
     try {
       setFeedbackMessage("")
       setFeedbackError("")
@@ -179,11 +213,17 @@ export default function ClientesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Clientes</h1>
-          <p className="text-muted-foreground mt-1">Gerencie seus clientes e projetos</p>
+          <p className="mt-1 text-muted-foreground">Um CRM enxuto para organizar quem envia material, quanto esforço cada cliente exige e onde o trabalho vive.</p>
         </div>
+        <div className="rounded-2xl border border-border bg-background/70 px-4 py-3 text-sm text-muted-foreground">
+          Mantenha esta lista enxuta. Cada cliente aqui deve se conectar a entregas reais na Agenda.
+        </div>
+      </div>
+
+      <div className="flex items-center justify-end">
         <Dialog open={dialogOpen} onOpenChange={(open) => {
           setDialogOpen(open)
           if (!open) resetForm()
@@ -191,16 +231,16 @@ export default function ClientesPage() {
           <DialogTrigger asChild>
             <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
               <Plus className="w-4 h-4 mr-2" />
-              Novo Cliente
+              Novo cliente
             </Button>
           </DialogTrigger>
           <DialogContent className="bg-card border-border max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-foreground">
-                {editingCliente ? "Editar Cliente" : "Adicionar Novo Cliente"}
+                {editingCliente ? "Editar cliente" : "Novo cliente"}
               </DialogTitle>
               <DialogDescription className="text-muted-foreground">
-                Preencha as informações do cliente para gerenciar seus projetos
+                Preencha os dados do cliente para organizar seus projetos
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 mt-4">
@@ -257,7 +297,7 @@ export default function ClientesPage() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-foreground">Nível de Edição</Label>
+                <Label className="text-foreground">Nível de edição</Label>
                 <div className="grid grid-cols-1 gap-2">
                   {(Object.entries(niveisEdicao) as [keyof typeof niveisEdicao, typeof niveisEdicao.simples][]).map(([key, nivel]) => (
                     <button
@@ -279,7 +319,7 @@ export default function ClientesPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="duracao" className="text-foreground">
-                  Duração Média dos Vídeos: {formData.duracaoMedia} minutos
+                  Duração média dos vídeos: {formData.duracaoMedia} minutos
                 </Label>
                 <input
                   type="range"
@@ -297,13 +337,13 @@ export default function ClientesPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="frequencia" className="text-foreground">Frequência de Postagens</Label>
+                <Label htmlFor="frequencia" className="text-foreground">Frequência de postagem</Label>
                 <Select
                   value={formData.frequencia}
                   onValueChange={(value) => setFormData({ ...formData, frequencia: value })}
                 >
                   <SelectTrigger className="bg-background border-border">
-                    <SelectValue placeholder="Selecione a frequência" />
+                    <SelectValue placeholder="Selecione uma frequência" />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
                     {frequencias.map((freq) => (
@@ -324,10 +364,9 @@ export default function ClientesPage() {
                   value={formData.linkDrive}
                   onChange={(e) => setFormData({ ...formData, linkDrive: e.target.value })}
                   className="bg-background border-border"
-                  required
                 />
                 <p className="text-xs text-muted-foreground">
-                  Pasta onde o cliente envia os vídeos brutos
+                  Pasta onde o cliente envia os arquivos brutos
                 </p>
               </div>
 
@@ -348,14 +387,11 @@ export default function ClientesPage() {
                   className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
                   disabled={
                     isSaving ||
-                    !formData.nome ||
-                    !formData.telefone ||
-                    !formData.nivelEdicao ||
-                    !formData.frequencia ||
-                    !formData.linkDrive
+                    !formData.nome.trim() ||
+                    !formData.telefone.trim()
                   }
                 >
-                  {isSaving ? "Salvando..." : editingCliente ? "Salvar Alterações" : "Adicionar Cliente"}
+                  {isSaving ? "Salvando..." : editingCliente ? "Salvar alterações" : "Adicionar cliente"}
                 </Button>
               </div>
             </form>
@@ -363,50 +399,22 @@ export default function ClientesPage() {
         </Dialog>
       </div>
 
-      {feedbackMessage && <p className="text-sm text-primary">{feedbackMessage}</p>}
-      {feedbackError && <p className="text-sm text-destructive">{feedbackError}</p>}
+      <FeedbackBanner message={feedbackMessage} type="success" />
+      <FeedbackBanner message={feedbackError} type="error" />
 
-      <Card className="border-border bg-card">
-        <CardHeader>
-          <CardTitle className="text-foreground">Comunidade Exclusiva</CardTitle>
-          <CardDescription className="text-muted-foreground">
-            Entre nos grupos para networking, feedbacks e oportunidades.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-3">
-          <Link href="https://discord.gg/P4x7DKEGnJ" target="_blank">
-            <Button variant="outline" className="border-border">
-              <MessageCircleMore className="mr-2 h-4 w-4" />
-              Comunidade Discord
-            </Button>
-          </Link>
-          <Link href="https://chat.whatsapp.com/GCyIOZBGhYKAJ6sLvpYEUf?mode=gi_t" target="_blank">
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-              Grupo WhatsApp
-            </Button>
-          </Link>
-        </CardContent>
-      </Card>
-
-      {clientes.length === 0 ? (
-        <Card className="bg-card border-border">
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-              <User className="w-8 h-8 text-primary" />
-            </div>
-            <h3 className="text-lg font-medium text-foreground mb-2">Nenhum cliente cadastrado</h3>
-            <p className="text-muted-foreground text-center mb-4">
-              Comece adicionando seu primeiro cliente para gerenciar seus projetos
-            </p>
-            <Button
-              onClick={() => setDialogOpen(true)}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Adicionar Cliente
-            </Button>
-          </CardContent>
-        </Card>
+      {isLoading ? (
+        <PageLoadingState
+          title="Carregando clientes"
+          description="Estamos trazendo sua lista para você continuar o fluxo sem perder contexto."
+        />
+      ) : clientes.length === 0 ? (
+        <PageEmptyState
+          icon={<User className="h-7 w-7" />}
+          title="Nenhum cliente ainda"
+          description="Adicione seu primeiro cliente e depois vincule cada nova entrega a ele na Agenda."
+          actionLabel="Adicionar cliente"
+          onAction={() => setDialogOpen(true)}
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {clientes.map((cliente) => (
@@ -461,15 +469,22 @@ export default function ClientesPage() {
                     <Calendar className="w-4 h-4" />
                     <span>{frequencias.find(f => f.value === cliente.frequencia)?.label}</span>
                   </div>
-                  <a 
-                    href={cliente.linkDrive}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-primary hover:underline"
-                  >
-                    <Link2 className="w-4 h-4" />
-                    <span>Abrir Drive</span>
-                  </a>
+                  {cliente.linkDrive ? (
+                    <a 
+                      href={cliente.linkDrive}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-primary hover:underline"
+                    >
+                      <Link2 className="w-4 h-4" />
+                      <span>Abrir Drive</span>
+                    </a>
+                  ) : (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Link2 className="w-4 h-4" />
+                      <span>Ainda sem link do Drive</span>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
