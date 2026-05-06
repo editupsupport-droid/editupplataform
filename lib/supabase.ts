@@ -74,29 +74,12 @@ const buildAuthedRequest = (token: string, input: RequestInfo | URL, init: Reque
 }
 
 export const authFetch = async (input: RequestInfo | URL, init: RequestInit = {}) => {
-  let token: string | null
-
-  try {
-    token = await getSupabaseAccessToken()
-  } catch (error) {
-    throw new Error(error instanceof Error ? error.message : "Não foi possível validar sua sessão. Faça login novamente.")
-  }
-
+  const token = await getSupabaseAccessToken()
   if (!token) {
     throw new Error("Sua sessão não foi encontrada. Faça login novamente.")
   }
 
-  let firstResponse: Response
-
-  try {
-    firstResponse = await buildAuthedRequest(token, input, init)
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("A requisição demorou demais. Tente novamente.")
-    }
-    throw error
-  }
-
+  const firstResponse = await buildAuthedRequest(token, input, init)
   if (firstResponse.status !== 401 || !supabase) {
     return firstResponse
   }
@@ -108,12 +91,5 @@ export const authFetch = async (input: RequestInfo | URL, init: RequestInit = {}
     return firstResponse
   }
 
-  try {
-    return await buildAuthedRequest(refreshedToken, input, init)
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("A requisição demorou demais. Tente novamente.")
-    }
-    throw error
-  }
+  return buildAuthedRequest(refreshedToken, input, init)
 }

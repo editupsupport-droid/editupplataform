@@ -7,11 +7,13 @@ export interface ReviewTimelineItem {
 
 export interface ReviewFeedbackData {
   priceUsd: number | null
+  pixKey: string
   revisionItems: ReviewTimelineItem[]
 }
 
 const defaultReviewFeedback = (): ReviewFeedbackData => ({
   priceUsd: null,
+  pixKey: "",
   revisionItems: [],
 })
 
@@ -22,6 +24,7 @@ export const parseReviewFeedback = (rawValue: string | null | undefined): Review
     const parsed = JSON.parse(rawValue) as Partial<ReviewFeedbackData>
     return {
       priceUsd: typeof parsed.priceUsd === "number" && Number.isFinite(parsed.priceUsd) ? parsed.priceUsd : null,
+      pixKey: typeof parsed.pixKey === "string" ? parsed.pixKey.trim() : "",
       revisionItems: Array.isArray(parsed.revisionItems)
         ? parsed.revisionItems
             .filter((item): item is ReviewTimelineItem => {
@@ -44,6 +47,7 @@ export const parseReviewFeedback = (rawValue: string | null | undefined): Review
   } catch {
     return {
       priceUsd: null,
+      pixKey: "",
       revisionItems: rawValue.trim()
         ? [
             {
@@ -61,6 +65,7 @@ export const parseReviewFeedback = (rawValue: string | null | undefined): Review
 export const serializeReviewFeedback = (feedback: ReviewFeedbackData) =>
   JSON.stringify({
     priceUsd: feedback.priceUsd,
+    pixKey: feedback.pixKey,
     revisionItems: feedback.revisionItems,
   })
 

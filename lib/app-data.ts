@@ -6,6 +6,13 @@ export type ProfileLanguage = "en" | "pt-BR" | "es"
 
 export type VideoStyle = "long-form" | "short-form"
 
+export interface ProfileThemeColors {
+  pageBackground: string
+  cardBackground: string
+  textColor: string
+  accentColor: string
+}
+
 export type EditTool =
   | "adobe-premiere-pro"
   | "photoshop"
@@ -28,6 +35,7 @@ export interface EditorProfile {
   videoStyles: VideoStyle[]
   contactMethod: ContactMethod
   contactValue: string
+  themeColors: ProfileThemeColors
 }
 
 export interface AppUser {
@@ -37,6 +45,11 @@ export interface AppUser {
   password: string
   plan: PlanId
   createdAt: string
+  monthlyRevenueGoal?: number
+  appLanguage?: "pt" | "en" | "es"
+  appearanceTheme?: unknown
+  accountPhotoUrl?: string
+  accountPhotoPosition?: { x: number; y: number }
   profile: EditorProfile
 }
 
@@ -48,12 +61,27 @@ export interface JobPost {
   format: string
   salary: string
   description: string
+  referenceLink: string
   contact: string
   publishedById?: string
   publishedBy: string
   status: JobStatus
   createdAt: string
 }
+
+export interface ParsedBannerAssets {
+  bannerUrl: string
+  photoUrl: string
+  language: ProfileLanguage
+  themeColors: ProfileThemeColors
+}
+
+const defaultThemeColors = (): ProfileThemeColors => ({
+  pageBackground: "#0b1020",
+  cardBackground: "#11182d",
+  textColor: "#f8fafc",
+  accentColor: "#37352F",
+})
 
 export const PUBLISHER_EMAILS = [
   "muriloeditor2023@gmail.com",
@@ -73,8 +101,15 @@ export const PLAN_LABELS: Record<PlanId, string> = {
 }
 
 const DASHBOARD_ACCESS_BY_PLAN: Record<PlanId, string[]> = {
-  free: ["/dashboard/calculadora", "/dashboard/planos"],
-  starter: ["/dashboard/calculadora", "/dashboard/pack", "/dashboard/planos"],
+  free: ["/dashboard/calculadora", "/dashboard/planos", "/dashboard/configuracoes"],
+  starter: [
+    "/dashboard/calculadora",
+    "/dashboard/pack",
+    "/dashboard/exchange",
+    "/dashboard/drive",
+    "/dashboard/planos",
+    "/dashboard/configuracoes",
+  ],
   essential: ["/dashboard"],
 }
 
@@ -163,6 +198,7 @@ export const createDefaultProfile = (name: string, email: string, existingSlugs:
   videoStyles: [],
   contactMethod: "email",
   contactValue: email,
+  themeColors: defaultThemeColors(),
 })
 
 export const parseVideoUrls = (rawValue: unknown): string[] => {
@@ -194,9 +230,14 @@ export const serializeVideoUrls = (videoUrls: string[]) => {
   return JSON.stringify(normalized)
 }
 
-export const parseBannerAssets = (rawValue: unknown) => {
+export const parseBannerAssets = (rawValue: unknown): ParsedBannerAssets => {
   if (typeof rawValue !== "string" || !rawValue.trim()) {
-    return { bannerUrl: "", photoUrl: "", language: "pt-BR" as ProfileLanguage }
+    return {
+      bannerUrl: "",
+      photoUrl: "",
+      language: "pt-BR" as ProfileLanguage,
+      themeColors: defaultThemeColors(),
+    }
   }
 
   try {
@@ -209,6 +250,16 @@ export const parseBannerAssets = (rawValue: unknown) => {
           parsed.language === "pt-BR" || parsed.language === "es" || parsed.language === "en"
             ? (parsed.language as ProfileLanguage)
             : "pt-BR",
+        themeColors: {
+          pageBackground:
+            typeof parsed.themeColors?.pageBackground === "string" ? parsed.themeColors.pageBackground : defaultThemeColors().pageBackground,
+          cardBackground:
+            typeof parsed.themeColors?.cardBackground === "string" ? parsed.themeColors.cardBackground : defaultThemeColors().cardBackground,
+          textColor:
+            typeof parsed.themeColors?.textColor === "string" ? parsed.themeColors.textColor : defaultThemeColors().textColor,
+          accentColor:
+            typeof parsed.themeColors?.accentColor === "string" ? parsed.themeColors.accentColor : defaultThemeColors().accentColor,
+        },
       }
     }
   } catch {}
@@ -217,19 +268,80 @@ export const parseBannerAssets = (rawValue: unknown) => {
     bannerUrl: rawValue,
     photoUrl: "",
     language: "pt-BR" as ProfileLanguage,
+    themeColors: defaultThemeColors(),
   }
 }
 
-export const serializeBannerAssets = (bannerUrl: string, photoUrl: string, language: ProfileLanguage = "pt-BR") => {
-  if (!photoUrl.trim() && language === "pt-BR") {
-    return bannerUrl.trim()
+export const serializeBannerAssets = (
+  bannerUrl: string,
+  photoUrl: string,
+  language: ProfileLanguage = "pt-BR",
+  themeColors: ProfileThemeColors = defaultThemeColors()
+) => {
+  const normalizedBanner = bannerUrl.trim()
+  const normalizedPhoto = photoUrl.trim()
+  const normalizedTheme = {
+    pageBackground: themeColors.pageBackground,
+    cardBackground: themeColors.cardBackground,
+    textColor: themeColors.textColor,
+    accentColor: themeColors.accentColor,
+  }
+
+  if (
+    !normalizedPhoto &&
+    language === "pt-BR" &&
+    JSON.stringify(normalizedTheme) === JSON.stringify(defaultThemeColors())
+  ) {
+    return normalizedBanner
   }
 
   return JSON.stringify({
-    bannerUrl: bannerUrl.trim(),
-    photoUrl: photoUrl.trim(),
+    bannerUrl: normalizedBanner,
+    photoUrl: normalizedPhoto,
     language,
+    themeColors: normalizedTheme,
   })
+}
+
+const JOB_META_MARKER = "\n\n[EditUpMeta]"
+
+export const parseJobDescription = (rawValue: string | null | undefined) => {
+  const description = rawValue ?? ""
+  const markerIndex = description.lastIndexOf(JOB_META_MARKER)
+
+  if (markerIndex === -1) {
+    return {
+      description: description.trim(),
+      referenceLink: "",
+    }
+  }
+
+  const visibleDescription = description.slice(0, markerIndex).trim()
+  const rawMeta = description.slice(markerIndex + JOB_META_MARKER.length).trim()
+
+  try {
+    const parsed = JSON.parse(rawMeta) as { referenceLink?: unknown }
+    return {
+      description: visibleDescription,
+      referenceLink: typeof parsed.referenceLink === "string" ? parsed.referenceLink.trim() : "",
+    }
+  } catch {
+    return {
+      description: description.trim(),
+      referenceLink: "",
+    }
+  }
+}
+
+export const serializeJobDescription = (description: string, referenceLink = "") => {
+  const normalizedDescription = description.trim()
+  const normalizedReferenceLink = referenceLink.trim()
+
+  if (!normalizedReferenceLink) {
+    return normalizedDescription
+  }
+
+  return `${normalizedDescription}${JOB_META_MARKER}${JSON.stringify({ referenceLink: normalizedReferenceLink })}`
 }
 
 const seededUsersBase = [
@@ -280,6 +392,7 @@ export const seededJobs: JobPost[] = [
     salary: "$300 to $500 / month",
     description:
       "Looking for a fast-paced editor for 20 shorts per month, with captions and retention-focused cuts.",
+    referenceLink: "",
     contact: "@creatorlab.jobs",
     publishedById: "seed-murilo",
     publishedBy: "muriloeditor2023@gmail.com",
@@ -295,6 +408,7 @@ export const seededJobs: JobPost[] = [
     salary: "To be discussed",
     description:
       "Seeking an editor for 8 to 20 minute videos with editing, sound design, and organized weekly delivery.",
+    referenceLink: "",
     contact: "contato@estudionorte.com",
     publishedById: "seed-marinho",
     publishedBy: "marinhojose1103@gmail.com",

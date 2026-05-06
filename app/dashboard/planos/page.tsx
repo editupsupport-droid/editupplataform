@@ -7,6 +7,7 @@ import { Check, Crown, MessageCircleMore, Sparkles } from "lucide-react"
 import { useState } from "react"
 import { PLAN_LABELS, PlanId } from "@/lib/app-data"
 import { useAppSession } from "@/components/app/app-provider"
+import { authFetch } from "@/lib/supabase"
 
 const plans = [
   {
@@ -29,7 +30,7 @@ const plans = [
     period: "pagamento único",
     description: "Ideal para quem quer começar com o essencial e ter acesso prático sem complexidade.",
     features: [
-      "Calculadora de valores",
+      "Pricing calculator",
       "Pack completo de edição",
       "Acesso somente a esses dois recursos",
       "Entrada simples e direta",
@@ -46,7 +47,7 @@ const plans = [
     features: [
       "Tudo do Starter",
       "Acesso total à plataforma",
-      "Comunidade privada",
+      "Private community",
       "Alertas de novas vagas",
       "Aulas semanais",
       "Cursos e conteúdos completos",
@@ -73,15 +74,13 @@ export default function PlanosPage() {
     }
     setSelectedPlan(planId)
 
-    const response = await fetch("/api/stripe/checkout", {
+    const response = await authFetch("/api/stripe/checkout", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         plan: planId,
-        email: currentUser.email,
-        userId: currentUser.id,
       }),
     })
 
@@ -100,7 +99,7 @@ export default function PlanosPage() {
     <div className="mx-auto max-w-4xl space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground md:text-3xl">Planos e cobrança</h1>
+        <h1 className="text-2xl font-bold text-foreground md:text-3xl">Plans and billing</h1>
         <p className="mt-1 text-muted-foreground">
           Escolha o plano certo para o seu momento como editor
         </p>

@@ -1,17 +1,27 @@
 import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 import { planMeets } from "@/lib/app-data"
+import { enforceRateLimit, ensureTrustedOrigin } from "@/lib/security"
+import { requireAuthenticatedUser } from "@/lib/supabase-server"
 import { getStripe, stripePrices } from "@/lib/stripe"
 
 export const runtime = "nodejs"
 
+const checkoutSchema = z.object({
+  plan: z.enum(["starter", "essential"]),
+})
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { plan, email, userId } = body as {
-      plan: "starter" | "essential"
-      email: string
-      userId: string
-    }
+    const originError = ensureTrustedOrigin(request)
+    if (originError) return originError
+    const rateLimitError = enforceRateLimit(request, { scope: "stripe-checkout:post", max: 20 })
+    if (rateLimitError) return rateLimitError
+
+    const { user } = await requireAuthenticatedUser(request)
+    const { plan } = checkoutSchema.parse(await request.json())
+    const userId = user.id
+    const email = user.email ?? ""
 
     const priceId = stripePrices[plan]
 
@@ -64,7 +74,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ url: session.url })
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.issues[0]?.message ?? "Plano inválido." }, { status: 400 })
+    }
     const message = error instanceof Error ? error.message : "Erro ao criar checkout."
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: message === "Não autenticado." ? message : "Erro ao criar checkout." }, { status: message === "Não autenticado." ? 401 : 500 })
   }
 }

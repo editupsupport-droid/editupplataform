@@ -1,0 +1,46 @@
+import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
+import { requireAuthenticatedUser } from "@/lib/supabase-server"
+import { enforceRateLimit, ensureTrustedOrigin, sanitizePlainText } from "@/lib/security"
+import { createDriveFolderShortcut } from "@/lib/google-drive"
+
+export const runtime = "nodejs"
+
+const schema = z.object({
+  resourceId: z.string().uuid(),
+})
+
+export async function POST(request: NextRequest) {
+  try {
+    const originError = ensureTrustedOrigin(request)
+    if (originError) return originError
+    const rateLimitError = enforceRateLimit(request, { scope: "community-import:post", max: 60 })
+    if (rateLimitError) return rateLimitError
+
+    const { supabase, user } = await requireAuthenticatedUser(request)
+    const body = schema.parse(await request.json())
+
+    const { data: resource, error } = await supabase
+      .from("community_resources")
+      .select("title,drive_folder_id,drive_folder_name")
+      .eq("id", body.resourceId)
+      .maybeSingle()
+
+    if (error) return NextResponse.json({ error: "Não foi possível importar para o Drive." }, { status: 400 })
+    if (!resource) return NextResponse.json({ error: "Recurso não encontrado." }, { status: 404 })
+
+    const shortcut = await createDriveFolderShortcut({
+      userId: user.id,
+      folderId: resource.drive_folder_id,
+      name: sanitizePlainText(`EditUp - ${resource.drive_folder_name || resource.title}`),
+    })
+
+    return NextResponse.json({ file: shortcut })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.issues[0]?.message ?? "Dados inválidos." }, { status: 400 })
+    }
+    const message = error instanceof Error ? error.message : "Não foi possível importar para o Drive."
+    return NextResponse.json({ error: message === "Não autenticado." ? message : "Não foi possível importar para o Drive." }, { status: message === "Não autenticado." ? 401 : 500 })
+  }
+}

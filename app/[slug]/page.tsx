@@ -123,33 +123,44 @@ export default function PublicProfilePage() {
     contactValue: profile.contact_value,
   }
   const contactHref = getContactHref(normalizedProfile.contactMethod, normalizedProfile.contactValue)
+  const pageStyle = {
+    backgroundColor: normalizedProfile.themeColors.pageBackground,
+    color: normalizedProfile.themeColors.textColor,
+  }
+  const cardStyle = {
+    backgroundColor: normalizedProfile.themeColors.cardBackground,
+    borderColor: `${normalizedProfile.themeColors.accentColor}40`,
+  }
 
   return (
-    <div className="min-h-screen bg-background py-10">
+    <div className="min-h-screen py-10" style={pageStyle}>
       <div className="mx-auto max-w-5xl px-4 lg:px-8">
-        <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+        <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm hover:opacity-80" style={{ color: `${normalizedProfile.themeColors.textColor}B3` }}>
           <ArrowLeft className="h-4 w-4" />
           Voltar
         </Link>
 
-        <section className="overflow-hidden rounded-3xl border border-border bg-card">
+        <section className="overflow-hidden rounded-3xl border" style={cardStyle}>
           <div
-            className="min-h-52 border-b border-border bg-secondary bg-cover bg-center"
-            style={normalizedProfile.bannerUrl ? { backgroundImage: `linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.75)), url(${normalizedProfile.bannerUrl})` } : undefined}
+            className="min-h-52 border-b bg-secondary bg-cover bg-center"
+            style={{
+              borderColor: `${normalizedProfile.themeColors.accentColor}40`,
+              ...(normalizedProfile.bannerUrl ? { backgroundImage: `linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.75)), url(${normalizedProfile.bannerUrl})` } : {}),
+            }}
           >
             <div className="flex min-h-52 items-end px-6 py-8 lg:px-10">
               <div className="space-y-3">
                 <div
-                  className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-primary bg-cover bg-center text-2xl font-bold text-primary-foreground"
-                  style={normalizedProfile.photoUrl ? { backgroundImage: `url(${normalizedProfile.photoUrl})` } : undefined}
+                  className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-cover bg-center text-2xl font-bold text-white"
+                  style={normalizedProfile.photoUrl ? { backgroundImage: `url(${normalizedProfile.photoUrl})`, backgroundColor: normalizedProfile.themeColors.accentColor } : { backgroundColor: normalizedProfile.themeColors.accentColor }}
                 >
                   {!normalizedProfile.photoUrl && normalizedProfile.fullName.slice(0, 1).toUpperCase()}
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold text-foreground lg:text-4xl">{normalizedProfile.fullName}</h1>
-                  <p className="text-lg text-muted-foreground">{normalizedProfile.professionalTitle}</p>
-                  {normalizedProfile.location && <p className="mt-1 text-sm text-muted-foreground">{normalizedProfile.location}</p>}
-                  <p className="mt-1 text-sm text-muted-foreground">{PROFILE_LANGUAGE_LABELS[normalizedProfile.language]}</p>
+                  <h1 className="text-3xl font-bold lg:text-4xl" style={{ color: normalizedProfile.themeColors.textColor }}>{normalizedProfile.fullName}</h1>
+                  <p className="text-lg" style={{ color: `${normalizedProfile.themeColors.textColor}CC` }}>{normalizedProfile.professionalTitle}</p>
+                  {normalizedProfile.location && <p className="mt-1 text-sm" style={{ color: `${normalizedProfile.themeColors.textColor}B3` }}>{normalizedProfile.location}</p>}
+                  <p className="mt-1 text-sm" style={{ color: `${normalizedProfile.themeColors.textColor}B3` }}>{PROFILE_LANGUAGE_LABELS[normalizedProfile.language]}</p>
                 </div>
               </div>
             </div>
@@ -157,20 +168,20 @@ export default function PublicProfilePage() {
 
           <div className="grid gap-6 p-6 lg:grid-cols-[1.2fr,0.8fr] lg:p-10">
             <div className="space-y-6">
-              <Card className="border-border bg-background">
+              <Card className="border" style={cardStyle}>
                 <CardContent className="space-y-4 p-6">
-                  <h2 className="text-lg font-semibold text-foreground">Sobre</h2>
-                  <p className="text-sm leading-6 text-muted-foreground">
+                  <h2 className="text-lg font-semibold" style={{ color: normalizedProfile.themeColors.textColor }}>Sobre</h2>
+                  <p className="text-sm leading-6" style={{ color: `${normalizedProfile.themeColors.textColor}CC` }}>
                     {normalizedProfile.bio || "Este editor ainda não adicionou uma bio profissional."}
                   </p>
                 </CardContent>
               </Card>
 
-              <Card className="border-border bg-background">
+              <Card className="border" style={cardStyle}>
                 <CardContent className="space-y-4 p-6">
                   <div className="flex items-center gap-2">
-                    <Video className="h-5 w-5 text-primary" />
-                    <h2 className="text-lg font-semibold text-foreground">Vídeos</h2>
+                    <Video className="h-5 w-5" style={{ color: normalizedProfile.themeColors.accentColor }} />
+                    <h2 className="text-lg font-semibold" style={{ color: normalizedProfile.themeColors.textColor }}>Vídeos em destaque</h2>
                   </div>
                   {normalizedProfile.videoUrls.some(Boolean) ? (
                     <div className="space-y-4">
@@ -197,6 +208,7 @@ export default function PublicProfilePage() {
                             href={videoUrl}
                             target="_blank"
                             className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                            style={{ color: normalizedProfile.themeColors.accentColor }}
                           >
                             Abrir vídeo {index + 1}
                           </Link>
@@ -204,8 +216,8 @@ export default function PublicProfilePage() {
                       })}
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Nenhum vídeo foi adicionado ainda.
+                    <p className="text-sm" style={{ color: `${normalizedProfile.themeColors.textColor}B3` }}>
+                      Nenhum vídeo adicionado ainda.
                     </p>
                   )}
                 </CardContent>
@@ -213,40 +225,53 @@ export default function PublicProfilePage() {
             </div>
 
             <div className="space-y-6">
-              <Card className="border-border bg-background">
+              <Card className="border" style={cardStyle}>
                 <CardContent className="space-y-4 p-6">
-                  <h2 className="text-lg font-semibold text-foreground">Ferramentas</h2>
+                  <h2 className="text-lg font-semibold" style={{ color: normalizedProfile.themeColors.textColor }}>Ferramentas de edição</h2>
+                  {normalizedProfile.editTools.length > 0 && (
+                    <p className="text-sm" style={{ color: `${normalizedProfile.themeColors.textColor}CC` }}>
+                      Trabalha com {normalizedProfile.editTools.map((tool) => EDIT_TOOL_LABELS[tool as keyof typeof EDIT_TOOL_LABELS]).join(", ")}.
+                    </p>
+                  )}
                   <div className="flex flex-wrap gap-2">
                     {normalizedProfile.editTools.length > 0 ? (
-                      normalizedProfile.editTools.map((tool) => <Badge key={tool} variant="secondary">{EDIT_TOOL_LABELS[tool as keyof typeof EDIT_TOOL_LABELS]}</Badge>)
+                      normalizedProfile.editTools.map((tool) => (
+                        <Badge key={tool} variant="secondary" style={{ backgroundColor: `${normalizedProfile.themeColors.accentColor}22`, color: normalizedProfile.themeColors.accentColor }}>
+                          {EDIT_TOOL_LABELS[tool as keyof typeof EDIT_TOOL_LABELS]}
+                        </Badge>
+                      ))
                     ) : (
-                      <span className="text-sm text-muted-foreground">Nenhuma ferramenta listada ainda.</span>
+                      <span className="text-sm" style={{ color: `${normalizedProfile.themeColors.textColor}B3` }}>Nenhuma ferramenta listada ainda.</span>
                     )}
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="border-border bg-background">
+              <Card className="border" style={cardStyle}>
                 <CardContent className="space-y-4 p-6">
-                  <h2 className="text-lg font-semibold text-foreground">Estilo de edição</h2>
+                  <h2 className="text-lg font-semibold" style={{ color: normalizedProfile.themeColors.textColor }}>Estilo de edição</h2>
                   <div className="flex flex-wrap gap-2">
                     {normalizedProfile.videoStyles.length > 0 ? (
-                      normalizedProfile.videoStyles.map((style) => <Badge key={style} variant="secondary">{VIDEO_STYLE_LABELS[style as keyof typeof VIDEO_STYLE_LABELS]}</Badge>)
+                      normalizedProfile.videoStyles.map((style) => (
+                        <Badge key={style} variant="secondary" style={{ backgroundColor: `${normalizedProfile.themeColors.accentColor}22`, color: normalizedProfile.themeColors.accentColor }}>
+                          {VIDEO_STYLE_LABELS[style as keyof typeof VIDEO_STYLE_LABELS]}
+                        </Badge>
+                      ))
                     ) : (
-                      <span className="text-sm text-muted-foreground">Nenhum estilo listado ainda.</span>
+                      <span className="text-sm" style={{ color: `${normalizedProfile.themeColors.textColor}B3` }}>Nenhum estilo listado ainda.</span>
                     )}
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="border-border bg-background">
+              <Card className="border" style={cardStyle}>
                 <CardContent className="space-y-4 p-6">
-                  <h2 className="text-lg font-semibold text-foreground">Contato principal</h2>
-                  <p className="text-sm text-muted-foreground">
+                  <h2 className="text-lg font-semibold" style={{ color: normalizedProfile.themeColors.textColor }}>Contato principal</h2>
+                  <p className="text-sm" style={{ color: `${normalizedProfile.themeColors.textColor}CC` }}>
                     {CONTACT_METHOD_LABELS[normalizedProfile.contactMethod]}: {normalizedProfile.contactValue || "Não informado"}
                   </p>
                   <Link href={contactHref} target="_blank">
-                    <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
+                    <Button className="w-full text-white hover:opacity-90" style={{ backgroundColor: normalizedProfile.themeColors.accentColor }}>
                       {normalizedProfile.contactMethod === "email" ? (
                         <Mail className="mr-2 h-4 w-4" />
                       ) : normalizedProfile.contactMethod === "phone" ? (

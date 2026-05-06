@@ -8,15 +8,18 @@ import {
   BriefcaseBusiness,
   Calculator,
   CalendarDays,
-  CreditCard,
+  ChevronDown,
+  ClipboardList,
+  FolderOpen,
+  HardDrive,
   Instagram,
   LayoutDashboard,
   Lock,
   LogOut,
   Menu,
-  MessageSquareMore,
   Package,
   Settings,
+  Store,
   User,
   Video,
   Wallet,
@@ -24,50 +27,72 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { NotificationBadge } from "@/components/dashboard/notification-badge"
 import { cn } from "@/lib/utils"
-import { PLAN_LABELS, canAccessDashboardPath, type PlanId } from "@/lib/app-data"
+import { canAccessDashboardPath, PLAN_LABELS, type PlanId } from "@/lib/app-data"
 import { useAppSession } from "@/components/app/app-provider"
+import { useAppPreferences } from "@/components/app/preferences-provider"
 import { fetchUnreadNotificationCount, subscribeWorkspaceSync } from "@/lib/workspace-db"
 
 type NavItem = {
-  name: string
+  nameKey:
+    | "dashboard"
+    | "clients"
+    | "schedule"
+    | "notifications"
+    | "quotes"
+    | "finance"
+    | "calculator"
+    | "jobs"
+    | "pack"
+    | "exchange"
+    | "drive"
   href: string
   icon: LucideIcon
   minimumPlan: PlanId
   isNotification?: boolean
 }
 
-const navItems: NavItem[] = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, minimumPlan: "essential" },
-  { name: "Clientes", href: "/dashboard/clientes", icon: User, minimumPlan: "essential" },
-  { name: "Agenda", href: "/dashboard/kanban", icon: CalendarDays, minimumPlan: "essential" },
-  { name: "Notificações", href: "/dashboard/notificacoes", icon: Bell, minimumPlan: "essential", isNotification: true },
-  { name: "Finanças", href: "/dashboard/financeiro", icon: Wallet, minimumPlan: "essential" },
-  { name: "Calculadora", href: "/dashboard/calculadora", icon: Calculator, minimumPlan: "free" },
-  { name: "Vagas", href: "/dashboard/vagas", icon: BriefcaseBusiness, minimumPlan: "essential" },
-  { name: "Pack de Edição", href: "/dashboard/pack", icon: Package, minimumPlan: "starter" },
-  { name: "Curso de Reels", href: "/dashboard/curso-reels", icon: Video, minimumPlan: "essential" },
-  { name: "Prospecção", href: "/dashboard/prospeccao", icon: Instagram, minimumPlan: "essential" },
-  { name: "Comunidade", href: "/dashboard/comunidade", icon: MessageSquareMore, minimumPlan: "essential" },
-  { name: "Planos", href: "/dashboard/planos", icon: CreditCard, minimumPlan: "free" },
-  { name: "Perfil", href: "/dashboard/perfil", icon: User, minimumPlan: "essential" },
-  { name: "Configurações", href: "/dashboard/configuracoes", icon: Settings, minimumPlan: "essential" },
+type CourseItem = {
+  nameKey: "reelsCourse" | "outreach"
+  href: string
+  icon: LucideIcon
+  minimumPlan: PlanId
+}
+
+const operationItems: NavItem[] = [
+  { nameKey: "dashboard", href: "/dashboard", icon: LayoutDashboard, minimumPlan: "essential" },
+  { nameKey: "clients", href: "/dashboard/clientes", icon: User, minimumPlan: "essential" },
+  { nameKey: "schedule", href: "/dashboard/kanban", icon: CalendarDays, minimumPlan: "essential" },
+  { nameKey: "quotes", href: "/dashboard/orcamentos", icon: ClipboardList, minimumPlan: "essential" },
+  { nameKey: "finance", href: "/dashboard/financeiro", icon: Wallet, minimumPlan: "essential" },
+  { nameKey: "notifications", href: "/dashboard/notificacoes", icon: Bell, minimumPlan: "essential", isNotification: true },
 ]
 
-const getInitials = (name: string) =>
-  name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("") || "ED"
+const resourceItems: NavItem[] = [
+  { nameKey: "calculator", href: "/dashboard/calculadora", icon: Calculator, minimumPlan: "free" },
+  { nameKey: "drive", href: "/dashboard/drive", icon: HardDrive, minimumPlan: "starter" },
+  { nameKey: "pack", href: "/dashboard/pack", icon: Package, minimumPlan: "starter" },
+  { nameKey: "exchange", href: "/dashboard/exchange", icon: Store, minimumPlan: "starter" },
+  { nameKey: "jobs", href: "/dashboard/vagas", icon: BriefcaseBusiness, minimumPlan: "essential" },
+]
+
+const courseItems: CourseItem[] = [
+  { nameKey: "reelsCourse", href: "/dashboard/curso-reels", icon: Video, minimumPlan: "essential" },
+  { nameKey: "outreach", href: "/dashboard/prospeccao", icon: Instagram, minimumPlan: "essential" },
+]
 
 export function DashboardSidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [coursesOpen, setCoursesOpen] = useState(false)
+  const [resourcesOpen, setResourcesOpen] = useState(false)
   const [notificationCount, setNotificationCount] = useState(0)
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
   const { currentUser, logoutUser, isReady } = useAppSession()
+  const { t } = useAppPreferences()
 
   useEffect(() => {
     if (!currentUser) {
@@ -89,6 +114,23 @@ export function DashboardSidebar() {
     })
   }, [currentUser])
 
+  useEffect(() => {
+    if (pathname === "/dashboard/notificacoes") {
+      setNotificationCount(0)
+    }
+  }, [pathname])
+
+  useEffect(() => {
+    if (!courseItems.some((item) => pathname === item.href)) {
+      setCoursesOpen(false)
+    }
+    if (!resourceItems.some((item) => pathname === item.href)) {
+      setResourcesOpen(false)
+    } else {
+      setResourcesOpen(true)
+    }
+  }, [pathname])
+
   const handleLogout = async () => {
     setMobileMenuOpen(false)
     await logoutUser()
@@ -99,7 +141,7 @@ export function DashboardSidebar() {
   return (
     <>
       <button
-        className="fixed left-4 top-4 z-50 flex h-10 w-10 items-center justify-center rounded-xl border border-sidebar-border/80 bg-sidebar/95 text-sidebar-foreground shadow-[0_8px_30px_rgba(0,0,0,0.28)] backdrop-blur lg:hidden"
+        className="fixed left-4 top-4 z-50 flex h-10 w-10 items-center justify-center rounded-lg border border-sidebar-border bg-sidebar text-sidebar-foreground lg:hidden"
         onClick={() => setMobileMenuOpen((current) => !current)}
       >
         {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -114,33 +156,23 @@ export function DashboardSidebar() {
 
       <aside
         className={cn(
-          "fixed left-0 top-0 z-40 h-full w-72 border-r border-sidebar-border/80 bg-sidebar/95 backdrop-blur transition-transform duration-200 lg:translate-x-0",
+          "premium-floating-sidebar fixed left-0 top-0 z-40 h-full w-72 border-r border-sidebar-border bg-sidebar transition-transform duration-300 ease-out lg:left-0 lg:top-0 lg:h-screen lg:w-[260px] lg:translate-x-0 lg:overflow-hidden lg:rounded-none lg:border-r lg:shadow-none",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         <div className="flex h-full flex-col">
-          <div className="border-b border-sidebar-border/80 px-5 py-5">
-            <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3">
-              <img src="/logo.jpeg" alt="Astherisch" className="h-10 w-10 rounded-xl object-cover" />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-sidebar-foreground">Astherisch</p>
-                <p className="truncate text-xs text-sidebar-foreground/55">Workspace do editor</p>
+          <div className="border-b border-sidebar-border px-3 py-4 lg:px-4">
+            <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-secondary">
+              <img src="/favicon.svg" alt="EditUp" className="h-8 w-8 shrink-0 rounded-md object-cover" />
+              <div className="min-w-0 overflow-hidden">
+                <p className="truncate text-sm font-semibold text-sidebar-foreground">EditUp</p>
               </div>
             </Link>
           </div>
 
-          <div className="px-5 pt-5">
-            {currentUser && (
-              <div className="rounded-2xl border border-sidebar-border/80 bg-sidebar-accent/70 px-4 py-4">
-                <p className="text-[0.7rem] font-medium uppercase tracking-[0.24em] text-sidebar-foreground/45">Plano</p>
-                <p className="mt-2 text-sm font-semibold text-sidebar-foreground">{PLAN_LABELS[currentUser.plan]}</p>
-                <p className="mt-1 text-xs leading-5 text-sidebar-foreground/55">Acesse suas ferramentas e acompanhe seu fluxo de trabalho.</p>
-              </div>
-            )}
-          </div>
-
-          <nav className="flex-1 space-y-1.5 overflow-y-auto px-3 py-5">
-            {navItems.map((item) => {
+          <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-3 py-3 lg:px-4">
+            <p className="px-2 pb-1 pt-1 text-[11px] font-medium uppercase tracking-normal text-muted-foreground">Operação</p>
+            {operationItems.map((item) => {
               const isActive = pathname === item.href
               const isLocked = isReady
                 ? (currentUser ? !canAccessDashboardPath(item.href, currentUser.plan) : true)
@@ -150,62 +182,206 @@ export function DashboardSidebar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={() => {
+                    setMobileMenuOpen(false)
+                    setCoursesOpen(false)
+                    setResourcesOpen(false)
+                  }}
+                  title={isLocked ? `Disponível no plano ${PLAN_LABELS[item.minimumPlan]}` : t(item.nameKey)}
                   className={cn(
-                    "flex items-center gap-3 rounded-2xl border border-transparent px-3.5 py-3 text-sm transition-all duration-200",
+                    "premium-sidebar-item group/nav relative flex h-9 items-center gap-2 rounded-md border border-transparent px-2 text-sm transition-colors duration-150",
                     isActive
-                      ? "border-sidebar-border/80 bg-sidebar-accent text-sidebar-foreground shadow-[0_8px_24px_rgba(0,0,0,0.18)]"
-                      : "text-sidebar-foreground/70 hover:border-sidebar-border/60 hover:bg-sidebar-accent/75 hover:text-sidebar-foreground",
+                      ? "is-active bg-secondary text-foreground"
+                      : "text-muted-foreground hover:bg-secondary hover:text-foreground",
                     isLocked && "opacity-70"
                   )}
                 >
                   <div
                     className={cn(
-                      "flex h-9 w-9 items-center justify-center rounded-xl border border-transparent bg-transparent transition-colors",
+                      "relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-transparent bg-transparent transition-colors",
                       isActive
-                        ? "border-primary/20 bg-primary/12 text-primary"
-                        : "text-sidebar-foreground/55"
+                        ? "text-foreground"
+                        : "text-muted-foreground"
                     )}
                   >
                     <item.icon className="h-4 w-4" />
                   </div>
-                  <span className="min-w-0 flex-1 truncate">{item.name}</span>
-                  {item.isNotification && notificationCount > 0 && (
-                    <span className="rounded-full bg-red-500 px-2 py-0.5 text-[0.7rem] font-semibold text-white">
-                      {notificationCount}
-                    </span>
-                  )}
-                  {isLocked && <Lock className="h-4 w-4 text-sidebar-foreground/45" />}
+                  <span className="min-w-0 flex-1 truncate">{t(item.nameKey)}</span>
+                  <div>
+                    {item.isNotification && <NotificationBadge count={notificationCount} />}
+                  </div>
+                  {isLocked && <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
                 </Link>
               )
             })}
+
+            <div className="space-y-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setResourcesOpen((current) => !current)
+                  setCoursesOpen(false)
+                }}
+                className={cn(
+                  "premium-sidebar-item group/nav relative flex h-9 w-full items-center gap-2 rounded-md border border-transparent px-2 text-sm transition-colors duration-150",
+                  resourcesOpen || resourceItems.some((item) => pathname === item.href)
+                    ? "is-active bg-secondary text-foreground"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                )}
+              >
+                <div className="relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-current">
+                  <Package className="h-4 w-4" />
+                </div>
+                <span className="min-w-0 flex-1 truncate text-left">Recursos</span>
+                <ChevronDown className={cn("h-4 w-4 shrink-0 transition-all duration-200", resourcesOpen && "rotate-180")} />
+              </button>
+
+              {resourcesOpen && (
+                <div className="space-y-1 pl-4">
+                  {resourceItems.map((item) => {
+                    const isActive = pathname === item.href
+                    const isLocked = isReady
+                      ? (currentUser ? !canAccessDashboardPath(item.href, currentUser.plan) : true)
+                      : false
+
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        title={isLocked ? `Disponível no plano ${PLAN_LABELS[item.minimumPlan]}` : t(item.nameKey)}
+                        className={cn(
+                          "premium-sidebar-item group/nav relative flex h-8 items-center gap-2 rounded-md border border-transparent px-2 text-sm transition-colors duration-150",
+                          isActive
+                            ? "is-active bg-secondary text-foreground"
+                            : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                          isLocked && "opacity-70"
+                        )}
+                      >
+                        <div className={cn("relative z-10 flex h-5 w-5 shrink-0 items-center justify-center rounded-md", isActive ? "text-foreground" : "text-muted-foreground")}>
+                          <item.icon className="h-3.5 w-3.5" />
+                        </div>
+                        <span className="min-w-0 flex-1 truncate">{t(item.nameKey)}</span>
+                        {isLocked && <Lock className="h-3 w-3 shrink-0 text-muted-foreground" />}
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setCoursesOpen((current) => !current)
+                  setResourcesOpen(false)
+                }}
+                className={cn(
+                  "premium-sidebar-item group/nav relative flex h-9 w-full items-center gap-2 rounded-md border border-transparent px-2 text-sm transition-colors duration-150",
+                  coursesOpen || courseItems.some((item) => pathname === item.href)
+                    ? "is-active bg-secondary text-foreground"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                )}
+              >
+                <div className="relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-current">
+                  <FolderOpen className="h-4 w-4" />
+                </div>
+                <span className="min-w-0 flex-1 truncate text-left">
+                  Cursos
+                </span>
+                <ChevronDown className={cn("h-4 w-4 shrink-0 transition-all duration-200", coursesOpen && "rotate-180")} />
+              </button>
+
+              {coursesOpen && (
+                <div className="space-y-1 pl-4">
+                  {courseItems.map((item) => {
+                    const isActive = pathname === item.href
+                    const isLocked = isReady
+                      ? (currentUser ? !canAccessDashboardPath(item.href, currentUser.plan) : true)
+                      : false
+
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => {
+                          setMobileMenuOpen(false)
+                        }}
+                        title={isLocked ? `Disponível no plano ${PLAN_LABELS[item.minimumPlan]}` : t(item.nameKey)}
+                        className={cn(
+                          "premium-sidebar-item group/nav relative flex h-8 items-center gap-2 rounded-md border border-transparent px-2 text-sm transition-colors duration-150",
+                          isActive
+                            ? "is-active bg-secondary text-foreground"
+                            : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                          isLocked && "opacity-70"
+                        )}
+                      >
+                        <div className={cn("relative z-10 flex h-5 w-5 shrink-0 items-center justify-center rounded-md", isActive ? "text-foreground" : "text-muted-foreground")}>
+                          <item.icon className="h-3.5 w-3.5" />
+                        </div>
+                        <span className="min-w-0 flex-1 truncate">
+                          {t(item.nameKey)}
+                        </span>
+                        {isLocked && <Lock className="h-3 w-3 shrink-0 text-muted-foreground" />}
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </nav>
 
-          <div className="border-t border-sidebar-border/80 p-4">
+          <div className="border-t border-sidebar-border p-4">
             {currentUser ? (
-              <div className="flex items-center gap-3 rounded-2xl border border-sidebar-border/80 bg-sidebar-accent/75 px-3.5 py-3.5">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-primary-foreground shadow-[0_10px_26px_rgba(0,34,254,0.22)]">
-                  {getInitials(currentUser.profile.fullName || currentUser.name)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-sidebar-foreground">
-                    {currentUser.profile.fullName || currentUser.name}
-                  </p>
-                  <p className="truncate text-xs text-sidebar-foreground/55">{currentUser.email}</p>
-                </div>
+              <div className="flex flex-col gap-1 rounded-lg border border-sidebar-border bg-sidebar-accent p-1">
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => void handleLogout()}
-                  className="h-10 w-10 rounded-xl p-0 text-sidebar-foreground/70 hover:bg-primary hover:text-primary-foreground"
+                  size="icon"
+                  onClick={() => {
+                    setMobileMenuOpen(false)
+                    router.push("/dashboard/configuracoes")
+                  }}
+                  className="h-9 w-full shrink-0 justify-start rounded-md px-2 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  aria-label="Open settings"
+                >
+                  <Settings className="h-4 w-4" />
+                  <span className="ml-2">{t("settings")}</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setMobileMenuOpen(false)
+                    setLogoutDialogOpen(true)
+                  }}
+                  className="h-9 w-full shrink-0 justify-start rounded-md px-2 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  aria-label={t("logout")}
                 >
                   <LogOut className="h-4 w-4" />
+                  <span className="ml-2">{t("logout")}</span>
                 </Button>
               </div>
             ) : null}
           </div>
         </div>
       </aside>
+      <Dialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
+        <DialogContent className="max-w-sm rounded-lg border-border bg-card shadow-sm" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Sair da conta?</DialogTitle>
+            <DialogDescription>Você será desconectado desta sessão.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" className="border-border" onClick={() => setLogoutDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={() => void handleLogout()}>
+              Sair
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

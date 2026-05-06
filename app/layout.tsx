@@ -1,19 +1,22 @@
 import type { Metadata } from 'next'
-import { Poppins } from 'next/font/google'
+import { Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { AppProvider } from '@/components/app/app-provider'
+import { AppPreferencesProvider } from '@/components/app/preferences-provider'
+import { NotificationPermissionPopup } from '@/components/app/notification-permission-popup'
+import { FreeTrialTasksWidget } from '@/components/dashboard/free-trial-tasks-widget'
 import { getSiteUrl } from '@/lib/site-url'
 import './globals.css'
 
-const poppins = Poppins({ 
+const inter = Inter({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-poppins"
-});
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-inter"
+})
 
 export const metadata: Metadata = {
-  title: 'Astherisch - Level Up Your Editing Career',
-  description: 'A complete platform for video editors with pricing tools, editing packs, portfolio pages, and exclusive resources.',
+  title: 'EditUp - Plataforma para editores de vídeo',
+  description: 'Uma plataforma completa para editores de vídeo com calculadora de valores, packs de edição, portfólio e recursos exclusivos.',
   metadataBase: new URL(getSiteUrl()),
   icons: {
     icon: '/favicon.svg',
@@ -28,9 +31,15 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="pt-BR" className="bg-background">
-      <body className={`${poppins.className} font-sans antialiased`}>
-        <AppProvider>{children}</AppProvider>
+    <html lang="pt-BR" className={`${inter.variable} bg-background`}>
+      <body className={`${inter.className} font-sans antialiased`}>
+        <AppPreferencesProvider>
+          <AppProvider>
+            {children}
+            <NotificationPermissionPopup />
+            <FreeTrialTasksWidget />
+          </AppProvider>
+        </AppPreferencesProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

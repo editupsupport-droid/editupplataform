@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model QuoteRequest {
+  id            String   @id @default(uuid()) @db.Uuid
+  editorId      String   @map("editor_id") @db.Uuid
+  clientName    String   @map("client_name")
+  clientContact String   @map("client_contact")
+  videoType     String   @map("video_type")
+  duration      String
+  level         String
+  extras        Json
+  totalPrice    Int      @map("total_price")
+  deadline      String
+  status        String   @default("pendente")
+  formAnswers   Json     @default("{}") @map("form_answers")
+  pricingBreakdown Json  @default("{}") @map("pricing_breakdown")
+  calculatedPrice Int?    @map("calculated_price")
+  manualAdjustment Int    @default(0) @map("manual_adjustment")
+  editorMessage String    @default("") @map("editor_message")
+  finalizedAt   DateTime? @map("finalized_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([editorId, createdAt(sort: Desc)])
+  @@map("quote_requests")
+}
+
+model QuotePreset {
+  id               String   @id @default(uuid()) @db.Uuid
+  editorId         String   @map("editor_id") @db.Uuid
+  name             String
+  description      String   @default("")
+  categoryId       String   @map("category_id")
+  addOnIds         Json     @default("[]") @map("add_on_ids")
+  answers          Json     @default("{}")
+  manualAdjustment Int      @default(0) @map("manual_adjustment")
+  clientMessage    String   @default("") @map("client_message")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @default(now()) @map("updated_at")
+
+  @@index([editorId, createdAt(sort: Desc)])
+  @@map("quote_presets")
+}

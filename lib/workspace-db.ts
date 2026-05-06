@@ -3,12 +3,27 @@
 import { authFetch, isSupabaseConfigured } from "@/lib/supabase"
 import {
   getWorkspaceClients,
+  getWorkspaceClientPhoto,
+  getWorkspaceClientProfile,
+  getWorkspaceTaskMeta,
   getWorkspaceTasks,
+  removeWorkspaceClientPhoto,
+  removeWorkspaceClientProfile,
+  removeWorkspaceTaskMeta,
   saveWorkspaceClients,
   saveWorkspaceTasks,
+  setWorkspaceClientPhoto,
+  setWorkspaceClientProfile,
+  setWorkspaceTaskMeta,
   WorkspaceClient,
   WorkspaceTask,
 } from "@/lib/workspace-store"
+import {
+  createDefaultClientProfile,
+  createDefaultTaskChecklist,
+  createDefaultTaskScope,
+  createTimelineEvent,
+} from "@/lib/workflow-insights"
 
 const WORKSPACE_SYNC_EVENT = "astherisch-workspace-sync"
 const workspaceClientsCache = new Map<string, WorkspaceClient[]>()
@@ -46,6 +61,8 @@ type ClientRow = {
   average_duration: number | null
   frequency: string | null
   drive_link: string | null
+  drive_folder_id: string | null
+  drive_folder_name: string | null
   created_at: string
 }
 
@@ -84,6 +101,24 @@ type FixedExpenseRow = {
 }
 
 const isBrowser = () => typeof window !== "undefined"
+const FINANCE_TRANSACTIONS_KEY = "editup-finance-transactions"
+const FIXED_EXPENSES_KEY = "editup-fixed-expenses"
+
+const readLocalStorage = <T,>(key: string, fallback: T): T => {
+  if (!isBrowser()) return fallback
+
+  try {
+    const value = window.localStorage.getItem(key)
+    return value ? (JSON.parse(value) as T) : fallback
+  } catch {
+    return fallback
+  }
+}
+
+const writeLocalStorage = <T,>(key: string, value: T) => {
+  if (!isBrowser()) return
+  window.localStorage.setItem(key, JSON.stringify(value))
+}
 
 const uniqueById = <T extends { id: string }>(items: T[]) => {
   const seen = new Set<string>()
@@ -138,13 +173,17 @@ const setCachedFixedExpenses = (userId: string, items: FixedExpense[]) => {
 const mapClientRow = (row: ClientRow): WorkspaceClient => ({
   id: row.id,
   nome: row.name,
+  fotoUrl: "",
   telefone: row.phone ?? "",
   codigoPais: row.country_code ?? "+55",
   nivelEdicao: row.edit_level ?? "simples",
   duracaoMedia: row.average_duration ?? 15,
   frequencia: row.frequency ?? "",
   linkDrive: row.drive_link ?? "",
+  driveFolderId: row.drive_folder_id ?? "",
+  driveFolderName: row.drive_folder_name ?? "",
   createdAt: row.created_at,
+  perfilOperacional: createDefaultClientProfile(),
 })
 
 const mapTaskRow = (row: TaskRow): WorkspaceTask => ({
@@ -162,6 +201,9 @@ const mapTaskRow = (row: TaskRow): WorkspaceTask => ({
   statusCliente: row.client_status ?? "pendente",
   notificationRead: Boolean(row.notification_read),
   updatedAt: row.updated_at,
+  checklist: createDefaultTaskChecklist(),
+  escopo: createDefaultTaskScope(),
+  timeline: [],
 })
 
 const mapTransactionRow = (row: FinanceTransactionRow): FinanceTransaction => ({
@@ -208,7 +250,11 @@ export const fetchWorkspaceClients = async (userId: string, options?: { force?: 
     try {
       const response = await authFetch("/api/clients")
       const payload = await readJsonResponse<{ clients: ClientRow[] }>(response)
-      const clients = (payload.clients ?? []).map((row) => mapClientRow(row))
+      const clients = (payload.clients ?? []).map((row) => ({
+        ...mapClientRow(row),
+        fotoUrl: getWorkspaceClientPhoto(userId, row.id),
+        perfilOperacional: getWorkspaceClientProfile(userId, row.id) ?? createDefaultClientProfile(),
+      }))
       setCachedWorkspaceClients(userId, clients)
       return clients
     } finally {
@@ -226,6 +272,10 @@ export const upsertWorkspaceClient = async (userId: string, client: WorkspaceCli
     const exists = currentClients.some((item) => item.id === client.id)
     const nextClients = exists ? currentClients.map((item) => (item.id === client.id ? client : item)) : [client, ...currentClients]
     saveWorkspaceClients(nextClients)
+    if (client.id) {
+      setWorkspaceClientPhoto(userId, client.id, client.fotoUrl ?? "")
+      setWorkspaceClientProfile(userId, client.id, client.perfilOperacional ?? createDefaultClientProfile())
+    }
     setCachedWorkspaceClients(userId, nextClients)
     emitWorkspaceSync()
     return client
@@ -244,10 +294,20 @@ export const upsertWorkspaceClient = async (userId: string, client: WorkspaceCli
       averageDuration: client.duracaoMedia,
       frequency: client.frequencia,
       driveLink: client.linkDrive,
+      driveFolderId: client.driveFolderId?.trim() || null,
+      driveFolderName: client.driveFolderName?.trim() || "",
     }),
   })
   const payload = await readJsonResponse<{ client: ClientRow }>(response)
-  const savedClient = mapClientRow(payload.client)
+  const savedClient = {
+    ...mapClientRow(payload.client),
+    fotoUrl: client.fotoUrl?.trim() ?? "",
+    driveFolderId: payload.client.drive_folder_id ?? client.driveFolderId?.trim() ?? "",
+    driveFolderName: payload.client.drive_folder_name ?? client.driveFolderName?.trim() ?? "",
+    perfilOperacional: client.perfilOperacional ?? createDefaultClientProfile(),
+  }
+  setWorkspaceClientPhoto(userId, savedClient.id, savedClient.fotoUrl ?? "")
+  setWorkspaceClientProfile(userId, savedClient.id, savedClient.perfilOperacional ?? createDefaultClientProfile())
   const nextClients = (() => {
     const currentClients = getCachedWorkspaceClients(userId) ?? []
     const exists = currentClients.some((item) => item.id === savedClient.id)
@@ -264,6 +324,8 @@ export const deleteWorkspaceClient = async (userId: string, clientId: string) =>
   if (!isSupabaseConfigured) {
     const nextClients = getWorkspaceClients().filter((client) => client.id !== clientId)
     saveWorkspaceClients(nextClients)
+    removeWorkspaceClientPhoto(userId, clientId)
+    removeWorkspaceClientProfile(userId, clientId)
     setCachedWorkspaceClients(userId, nextClients)
     emitWorkspaceSync()
     return
@@ -280,6 +342,8 @@ export const deleteWorkspaceClient = async (userId: string, clientId: string) =>
   if (cachedClients) {
     setCachedWorkspaceClients(userId, cachedClients.filter((client) => client.id !== clientId))
   }
+  removeWorkspaceClientPhoto(userId, clientId)
+  removeWorkspaceClientProfile(userId, clientId)
   emitWorkspaceSync()
 }
 
@@ -300,7 +364,15 @@ export const fetchWorkspaceTasks = async (userId: string, options?: { force?: bo
     try {
       const response = await authFetch("/api/tasks")
       const payload = await readJsonResponse<{ tasks: TaskRow[] }>(response)
-      const tasks = (payload.tasks ?? []).map((row) => mapTaskRow(row))
+      const tasks = (payload.tasks ?? []).map((row) => {
+        const taskMeta = getWorkspaceTaskMeta(userId, row.id)
+        return {
+          ...mapTaskRow(row),
+          checklist: taskMeta?.checklist ?? createDefaultTaskChecklist(),
+          escopo: taskMeta?.escopo ?? createDefaultTaskScope(),
+          timeline: taskMeta?.timeline ?? [],
+        }
+      })
       setCachedWorkspaceTasks(userId, tasks)
       return tasks
     } finally {
@@ -314,10 +386,11 @@ export const fetchWorkspaceTasks = async (userId: string, options?: { force?: bo
 
 export const createWorkspaceTask = async (
   userId: string,
-  task: Pick<WorkspaceTask, "titulo" | "descricao" | "clienteId" | "clienteNome" | "prazo">
+  task: Pick<WorkspaceTask, "titulo" | "descricao" | "clienteId" | "clienteNome" | "prazo" | "checklist" | "escopo">
 ) => {
   if (!isSupabaseConfigured) {
     const currentTasks = getWorkspaceTasks()
+    const createdAt = new Date().toISOString()
     const nextTask: WorkspaceTask = {
       id: crypto.randomUUID(),
       titulo: task.titulo,
@@ -327,10 +400,18 @@ export const createWorkspaceTask = async (
       prazo: task.prazo,
       colunaId: "agenda",
       statusCliente: "pendente",
-      updatedAt: new Date().toISOString(),
+      updatedAt: createdAt,
       notificationRead: true,
+      checklist: task.checklist ?? createDefaultTaskChecklist(),
+      escopo: task.escopo ?? createDefaultTaskScope(),
+      timeline: [createTimelineEvent("created", "Tarefa criada", "Projeto adicionado à agenda.", createdAt)],
     }
     saveWorkspaceTasks([nextTask, ...currentTasks])
+    setWorkspaceTaskMeta(userId, nextTask.id, {
+      checklist: nextTask.checklist ?? createDefaultTaskChecklist(),
+      escopo: nextTask.escopo ?? createDefaultTaskScope(),
+      timeline: nextTask.timeline ?? [],
+    })
     setCachedWorkspaceTasks(userId, [nextTask, ...currentTasks])
     emitWorkspaceSync()
     return nextTask
@@ -353,7 +434,17 @@ export const createWorkspaceTask = async (
     }),
   })
   const payload = await readJsonResponse<{ task: TaskRow }>(response)
-  const createdTask = mapTaskRow(payload.task)
+  const createdTask = {
+    ...mapTaskRow(payload.task),
+    checklist: task.checklist ?? createDefaultTaskChecklist(),
+    escopo: task.escopo ?? createDefaultTaskScope(),
+    timeline: [createTimelineEvent("created", "Tarefa criada", "Projeto adicionado à agenda.", payload.task.updated_at)],
+  }
+  setWorkspaceTaskMeta(userId, createdTask.id, {
+    checklist: createdTask.checklist ?? createDefaultTaskChecklist(),
+    escopo: createdTask.escopo ?? createDefaultTaskScope(),
+    timeline: createdTask.timeline ?? [],
+  })
   const cachedTasks = getCachedWorkspaceTasks(userId) ?? []
   setCachedWorkspaceTasks(userId, [createdTask, ...cachedTasks.filter((task) => task.id !== createdTask.id)])
   emitWorkspaceSync()
@@ -361,11 +452,53 @@ export const createWorkspaceTask = async (
 }
 
 export const updateWorkspaceTask = async (userId: string, taskId: string, changes: Partial<WorkspaceTask>) => {
+  const currentTask =
+    (getCachedWorkspaceTasks(userId) ?? getWorkspaceTasks()).find((task) => task.id === taskId) ?? null
+  const currentMeta = getWorkspaceTaskMeta(userId, taskId) ?? {
+    checklist: currentTask?.checklist ?? createDefaultTaskChecklist(),
+    escopo: currentTask?.escopo ?? createDefaultTaskScope(),
+    timeline: currentTask?.timeline ?? [],
+  }
+  const nextChecklist = changes.checklist ?? currentMeta.checklist
+  const nextEscopo = changes.escopo ?? currentMeta.escopo
+  const nextTimeline = [...currentMeta.timeline]
+  const changeMoment = new Date().toISOString()
+
+  if (changes.checklist) {
+    nextTimeline.unshift(createTimelineEvent("kickoff-updated", "Kickoff atualizado", "Checklist de preparação revisado.", changeMoment))
+  }
+  if (changes.escopo) {
+    nextTimeline.unshift(createTimelineEvent("scope-updated", "Escopo atualizado", "Escopo combinado foi ajustado.", changeMoment))
+  }
+  if (changes.colunaId && changes.colunaId !== currentTask?.colunaId) {
+    nextTimeline.unshift(createTimelineEvent("moved", "Etapa alterada", `Tarefa movida para ${changes.colunaId}.`, changeMoment))
+  }
+  if (changes.linkAprovacao && changes.linkAprovacao !== currentTask?.linkAprovacao) {
+    nextTimeline.unshift(createTimelineEvent("approval-generated", "Link de aprovação gerado", "Entrega enviada para revisão do cliente.", changeMoment))
+  }
+  if (changes.statusCliente === "concluido" && currentTask?.statusCliente !== "concluido") {
+    nextTimeline.unshift(createTimelineEvent("client-approved", "Cliente aprovou", "O cliente aprovou a entrega.", changeMoment))
+    nextTimeline.unshift(createTimelineEvent("completed", "Projeto concluído", "Entrega finalizada sem pendências.", changeMoment))
+  }
+  if (changes.statusCliente === "desaprovado" && currentTask?.statusCliente !== "desaprovado") {
+    nextTimeline.unshift(createTimelineEvent("client-revision", "Cliente desaprovou", "A entrega voltou como desaprovada para ajustes.", changeMoment))
+  }
+
   if (!isSupabaseConfigured) {
     const nextTasks = getWorkspaceTasks().map((task) =>
-      task.id === taskId ? { ...task, ...changes, updatedAt: new Date().toISOString() } : task
+      task.id === taskId
+        ? {
+            ...task,
+            ...changes,
+            checklist: nextChecklist,
+            escopo: nextEscopo,
+            timeline: nextTimeline,
+            updatedAt: changeMoment,
+          }
+        : task
     )
     saveWorkspaceTasks(nextTasks)
+    setWorkspaceTaskMeta(userId, taskId, { checklist: nextChecklist, escopo: nextEscopo, timeline: nextTimeline })
     setCachedWorkspaceTasks(userId, nextTasks)
     emitWorkspaceSync()
     return nextTasks.find((task) => task.id === taskId) ?? null
@@ -391,6 +524,40 @@ export const updateWorkspaceTask = async (userId: string, taskId: string, change
   }
 
   const cleanedPayload = Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== undefined))
+  if (Object.keys(cleanedPayload).length === 0) {
+    const fallbackTask = {
+      ...(currentTask ?? mapTaskRow({
+        id: taskId,
+        title: "",
+        description: "",
+        client_id: "",
+        client_name: "",
+        due_date: new Date().toISOString(),
+        column_id: "agenda",
+        drive_link: "",
+        approval_link: "",
+        approved: null,
+        client_feedback: "",
+        client_status: "pendente",
+        notification_read: true,
+        updated_at: changeMoment,
+      })),
+      ...changes,
+      checklist: nextChecklist,
+      escopo: nextEscopo,
+      timeline: nextTimeline,
+      updatedAt: changeMoment,
+    }
+    setWorkspaceTaskMeta(userId, taskId, { checklist: nextChecklist, escopo: nextEscopo, timeline: nextTimeline })
+    const cachedTasks = getCachedWorkspaceTasks(userId) ?? []
+    setCachedWorkspaceTasks(
+      userId,
+      cachedTasks.map((task) => (task.id === taskId ? fallbackTask : task))
+    )
+    emitWorkspaceSync()
+    return fallbackTask
+  }
+
   const response = await authFetch("/api/tasks", {
     method: "PATCH",
     headers: {
@@ -402,7 +569,13 @@ export const updateWorkspaceTask = async (userId: string, taskId: string, change
     }),
   })
   const result = await readJsonResponse<{ task: TaskRow }>(response)
-  const updatedTask = mapTaskRow(result.task)
+  const updatedTask = {
+    ...mapTaskRow(result.task),
+    checklist: nextChecklist,
+    escopo: nextEscopo,
+    timeline: nextTimeline,
+  }
+  setWorkspaceTaskMeta(userId, taskId, { checklist: nextChecklist, escopo: nextEscopo, timeline: nextTimeline })
   const cachedTasks = getCachedWorkspaceTasks(userId) ?? []
   setCachedWorkspaceTasks(
     userId,
@@ -410,6 +583,33 @@ export const updateWorkspaceTask = async (userId: string, taskId: string, change
   )
   emitWorkspaceSync()
   return updatedTask
+}
+
+export const deleteWorkspaceTask = async (userId: string, taskId: string) => {
+  if (!isSupabaseConfigured) {
+    const nextTasks = getWorkspaceTasks().filter((task) => task.id !== taskId)
+    saveWorkspaceTasks(nextTasks)
+    removeWorkspaceTaskMeta(userId, taskId)
+    setCachedWorkspaceTasks(userId, nextTasks)
+    emitWorkspaceSync()
+    return
+  }
+
+  const response = await authFetch("/api/tasks", {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ id: taskId }),
+  })
+
+  await readJsonResponse<{ success: boolean }>(response)
+  const cachedTasks = getCachedWorkspaceTasks(userId)
+  if (cachedTasks) {
+    setCachedWorkspaceTasks(userId, cachedTasks.filter((task) => task.id !== taskId))
+  }
+  removeWorkspaceTaskMeta(userId, taskId)
+  emitWorkspaceSync()
 }
 
 export const fetchUnreadNotificationCount = async (userId: string) => {
@@ -492,7 +692,11 @@ export const fetchFinanceTransactions = async (userId: string) => {
   const pendingRequest = pendingFinanceTransactionsRequests.get(userId)
   if (pendingRequest) return pendingRequest
 
-  if (!isSupabaseConfigured) return [] as FinanceTransaction[]
+  if (!isSupabaseConfigured) {
+    const items = readLocalStorage<FinanceTransaction[]>(FINANCE_TRANSACTIONS_KEY, [])
+    setCachedFinanceTransactions(userId, items)
+    return items
+  }
   const request = (async () => {
     try {
       const response = await authFetch("/api/finance?type=transactions")
@@ -510,7 +714,15 @@ export const fetchFinanceTransactions = async (userId: string) => {
 }
 
 export const createFinanceTransaction = async (userId: string, transaction: Omit<FinanceTransaction, "id">) => {
-  if (!isSupabaseConfigured) return { ...transaction, id: crypto.randomUUID() }
+  if (!isSupabaseConfigured) {
+    const createdTransaction = { ...transaction, id: crypto.randomUUID() }
+    const currentTransactions = readLocalStorage<FinanceTransaction[]>(FINANCE_TRANSACTIONS_KEY, [])
+    const nextTransactions = [createdTransaction, ...currentTransactions]
+    writeLocalStorage(FINANCE_TRANSACTIONS_KEY, nextTransactions)
+    setCachedFinanceTransactions(userId, nextTransactions)
+    emitWorkspaceSync()
+    return createdTransaction
+  }
   const response = await authFetch("/api/finance", {
     method: "POST",
     headers: {
@@ -533,11 +745,20 @@ export const createFinanceTransaction = async (userId: string, transaction: Omit
     userId,
     [createdTransaction, ...cachedTransactions.filter((item) => item.id !== createdTransaction.id)]
   )
+  emitWorkspaceSync()
   return createdTransaction
 }
 
 export const deleteFinanceTransaction = async (userId: string, transactionId: string) => {
-  if (!isSupabaseConfigured) return
+  if (!isSupabaseConfigured) {
+    const nextTransactions = readLocalStorage<FinanceTransaction[]>(FINANCE_TRANSACTIONS_KEY, []).filter(
+      (item) => item.id !== transactionId
+    )
+    writeLocalStorage(FINANCE_TRANSACTIONS_KEY, nextTransactions)
+    setCachedFinanceTransactions(userId, nextTransactions)
+    emitWorkspaceSync()
+    return
+  }
   const response = await authFetch("/api/finance", {
     method: "DELETE",
     headers: {
@@ -556,6 +777,7 @@ export const deleteFinanceTransaction = async (userId: string, transactionId: st
       cachedTransactions.filter((item) => item.id !== transactionId)
     )
   }
+  emitWorkspaceSync()
 }
 
 export const fetchFixedExpenses = async (userId: string) => {
@@ -565,7 +787,11 @@ export const fetchFixedExpenses = async (userId: string) => {
   const pendingRequest = pendingFixedExpensesRequests.get(userId)
   if (pendingRequest) return pendingRequest
 
-  if (!isSupabaseConfigured) return [] as FixedExpense[]
+  if (!isSupabaseConfigured) {
+    const items = readLocalStorage<FixedExpense[]>(FIXED_EXPENSES_KEY, [])
+    setCachedFixedExpenses(userId, items)
+    return items
+  }
   const request = (async () => {
     try {
       const response = await authFetch("/api/finance?type=expenses")
@@ -583,7 +809,15 @@ export const fetchFixedExpenses = async (userId: string) => {
 }
 
 export const createFixedExpense = async (userId: string, expense: Omit<FixedExpense, "id">) => {
-  if (!isSupabaseConfigured) return { ...expense, id: crypto.randomUUID() }
+  if (!isSupabaseConfigured) {
+    const createdExpense = { ...expense, id: crypto.randomUUID() }
+    const currentExpenses = readLocalStorage<FixedExpense[]>(FIXED_EXPENSES_KEY, [])
+    const nextExpenses = [createdExpense, ...currentExpenses]
+    writeLocalStorage(FIXED_EXPENSES_KEY, nextExpenses)
+    setCachedFixedExpenses(userId, nextExpenses)
+    emitWorkspaceSync()
+    return createdExpense
+  }
   const response = await authFetch("/api/finance", {
     method: "POST",
     headers: {
@@ -603,11 +837,18 @@ export const createFixedExpense = async (userId: string, expense: Omit<FixedExpe
     userId,
     [createdExpense, ...cachedExpenses.filter((item) => item.id !== createdExpense.id)]
   )
+  emitWorkspaceSync()
   return createdExpense
 }
 
 export const deleteFixedExpense = async (userId: string, expenseId: string) => {
-  if (!isSupabaseConfigured) return
+  if (!isSupabaseConfigured) {
+    const nextExpenses = readLocalStorage<FixedExpense[]>(FIXED_EXPENSES_KEY, []).filter((item) => item.id !== expenseId)
+    writeLocalStorage(FIXED_EXPENSES_KEY, nextExpenses)
+    setCachedFixedExpenses(userId, nextExpenses)
+    emitWorkspaceSync()
+    return
+  }
   const response = await authFetch("/api/finance", {
     method: "DELETE",
     headers: {
@@ -626,4 +867,5 @@ export const deleteFixedExpense = async (userId: string, expenseId: string) => {
       cachedExpenses.filter((item) => item.id !== expenseId)
     )
   }
+  emitWorkspaceSync()
 }

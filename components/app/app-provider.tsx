@@ -14,14 +14,17 @@ import {
   JobPost,
   JobStatus,
   parseBannerAssets,
+  parseJobDescription,
   parseVideoUrls,
   seededJobs,
   seededUsers,
   serializeBannerAssets,
+  serializeJobDescription,
   serializeVideoUrls,
   uniqueSlug,
 } from "@/lib/app-data"
 import { authFetch, getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase"
+import { builtInAppearanceThemes } from "@/lib/appearance"
 
 const USERS_STORAGE_KEY = "editpro-users"
 const JOBS_STORAGE_KEY = "editpro-jobs"
@@ -44,6 +47,7 @@ interface JobPayload {
   format: string
   salary: string
   description: string
+  referenceLink: string
   contact: string
 }
 
@@ -52,13 +56,14 @@ interface AppContextValue {
   jobs: JobPost[]
   currentUser: AppUser | null
   isReady: boolean
-  registerUser: (payload: RegisterPayload) => Promise<{ success: boolean; message?: string; requiresCode?: boolean }>
+  registerUser: (payload: RegisterPayload) => Promise<{ success: boolean; message?: string; requiresCode?: boolean; signedIn?: boolean }>
   loginUser: (email: string, password: string) => Promise<{ success: boolean; message?: string; requiresCode?: boolean }>
   sendEmailCode: (email: string, shouldCreateUser?: boolean) => Promise<{ success: boolean; message?: string }>
   verifyEmailCode: (email: string, token: string) => Promise<{ success: boolean; message?: string }>
   signInWithGoogle: () => Promise<{ success: boolean; message?: string }>
   logoutUser: () => Promise<void>
   updateCurrentUserPlan: (plan: AppUser["plan"]) => Promise<{ success: boolean; message?: string }>
+  refreshCurrentUser: () => Promise<void>
   saveCurrentUserProfile: (profile: EditorProfile) => Promise<{ success: boolean; message?: string; profile?: EditorProfile }>
   createJob: (payload: JobPayload) => Promise<{ success: boolean; message?: string }>
   deleteJob: (jobId: string) => Promise<void>
@@ -118,14 +123,30 @@ const createOptimisticUserFromAuthUser = (authUser: User): AppUser => {
 const mapProfileToAppUser = (profile: Record<string, unknown>): AppUser => {
   const bannerAssets = parseBannerAssets(profile.banner_url)
   const videoUrls = parseVideoUrls(profile.video_url)
+  const appearanceTheme = profile.appearance_theme && typeof profile.appearance_theme === "object" ? profile.appearance_theme as Record<string, unknown> : null
+  const accountMeta = appearanceTheme?.__account && typeof appearanceTheme.__account === "object" ? appearanceTheme.__account as Record<string, unknown> : null
+  const accountPosition = accountMeta?.photoPosition && typeof accountMeta.photoPosition === "object"
+    ? accountMeta.photoPosition as Record<string, unknown>
+    : null
 
   return {
     id: String(profile.id),
-    name: String(profile.full_name ?? profile.email ?? "Editor"),
+    name: String(accountMeta?.name ?? profile.full_name ?? profile.email ?? "Editor"),
     email: String(profile.email ?? ""),
     password: "",
     plan: (profile.plan as AppUser["plan"]) ?? "free",
     createdAt: String(profile.created_at ?? new Date().toISOString()),
+    monthlyRevenueGoal: Number(profile.monthly_revenue_goal ?? 5000),
+    appLanguage:
+      profile.app_language === "pt" || profile.app_language === "en" || profile.app_language === "es"
+        ? profile.app_language
+        : undefined,
+    appearanceTheme: profile.appearance_theme,
+    accountPhotoUrl: String(accountMeta?.photoUrl ?? ""),
+    accountPhotoPosition: {
+      x: Number(accountPosition?.x ?? 50),
+      y: Number(accountPosition?.y ?? 50),
+    },
     profile: {
       fullName: String(profile.full_name ?? profile.email ?? "Editor"),
       professionalTitle: String(profile.professional_title ?? "Editor de vídeo"),
@@ -140,27 +161,33 @@ const mapProfileToAppUser = (profile: Record<string, unknown>): AppUser => {
       videoStyles: normalizeTools(profile.video_styles) as EditorProfile["videoStyles"],
       contactMethod: (profile.contact_method as EditorProfile["contactMethod"]) ?? "email",
       contactValue: String(profile.contact_value ?? profile.email ?? ""),
+      themeColors: bannerAssets.themeColors,
     },
   }
 }
 
-const mapJobRow = (job: Record<string, unknown>, activeUser: AppUser | null): JobPost => ({
-  id: String(job.id),
-  title: String(job.title ?? ""),
-  company: String(job.company ?? ""),
-  location: String(job.location ?? ""),
-  format: String(job.format ?? ""),
-  salary: String(job.salary ?? ""),
-  description: String(job.description ?? ""),
-  contact: String(job.contact ?? ""),
-  publishedById: String(job.published_by ?? ""),
-  publishedBy:
-    String(job.published_by ?? "") === activeUser?.id
-      ? activeUser.email
-      : "Editor autorizado",
-  status: (job.status as JobStatus) ?? "open",
-  createdAt: String(job.created_at ?? new Date().toISOString()),
-})
+const mapJobRow = (job: Record<string, unknown>, activeUser: AppUser | null): JobPost => {
+  const parsedJob = parseJobDescription(String(job.description ?? ""))
+
+  return {
+    id: String(job.id),
+    title: String(job.title ?? ""),
+    company: String(job.company ?? ""),
+    location: String(job.location ?? ""),
+    format: String(job.format ?? ""),
+    salary: String(job.salary ?? ""),
+    description: parsedJob.description,
+    referenceLink: parsedJob.referenceLink,
+    contact: String(job.contact ?? ""),
+    publishedById: String(job.published_by ?? ""),
+    publishedBy:
+      String(job.published_by ?? "") === activeUser?.id
+        ? activeUser.email
+        : "Editor autorizado",
+    status: (job.status as JobStatus) ?? "open",
+    createdAt: String(job.created_at ?? new Date().toISOString()),
+  }
+}
 
 const isValidPlan = (value: unknown): value is PlanId =>
   value === "free" || value === "starter" || value === "essential"
@@ -219,6 +246,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         : normalizedEmail.split("@")[0] || "Editor"
 
     const defaultProfile = createDefaultProfile(fallbackName, normalizedEmail, [])
+    const defaultAppearanceTheme = builtInAppearanceThemes[0]
     const profilePayload = {
       id: authUser.id,
       email: normalizedEmail,
@@ -227,7 +255,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       bio: defaultProfile.bio,
       location: defaultProfile.location,
       slug: defaultProfile.slug,
-      banner_url: serializeBannerAssets(defaultProfile.bannerUrl, avatarUrl || defaultProfile.photoUrl, defaultProfile.language),
+      banner_url: serializeBannerAssets(
+        defaultProfile.bannerUrl,
+        avatarUrl || defaultProfile.photoUrl,
+        defaultProfile.language,
+        defaultProfile.themeColors
+      ),
       video_url: serializeVideoUrls(defaultProfile.videoUrls),
       edit_tools: defaultProfile.editTools,
       video_styles: defaultProfile.videoStyles,
@@ -235,6 +268,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       contact_value: normalizedEmail,
       plan: getDefaultPlanForEmail(normalizedEmail),
       can_publish_jobs: getDefaultPublishPermission(normalizedEmail),
+      monthly_revenue_goal: 5000,
+      app_language: "pt",
+      appearance_theme: {
+        ...defaultAppearanceTheme,
+        __account: {
+          name: fallbackName,
+          photoUrl: avatarUrl || "",
+          photoPosition: { x: 50, y: 50 },
+        },
+      },
     }
 
     const { data: existingProfile } = await supabase
@@ -263,7 +306,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (avatarUrl && !existingAssets.photoUrl) {
-      updates.banner_url = serializeBannerAssets(existingAssets.bannerUrl, avatarUrl, existingAssets.language)
+      updates.banner_url = serializeBannerAssets(
+        existingAssets.bannerUrl,
+        avatarUrl,
+        existingAssets.language,
+        existingAssets.themeColors
+      )
     }
 
     if (!isValidPlan(existingProfile.plan)) {
@@ -435,11 +483,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const isAuthThrottleMessage = (message: string) =>
     /rate limit|too many requests|email rate|for security purposes|security purposes|seconds?/i.test(message)
 
+  const isEmailConfirmationRequiredMessage = (message: string) =>
+    /confirm|confirmed|not confirmed|email verification|verify/i.test(message)
+
+  const claimFreeTrialSignup = async (email: string) => {
+    try {
+      await fetch("/api/free-trial", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      })
+    } catch (error) {
+      console.error("Nao foi possivel atualizar o contador do teste gratis:", error)
+    }
+  }
+
   const registerUser = async ({ name, email, password }: RegisterPayload) => {
     if (isSupabaseConfigured) {
       const normalizedEmail = email.trim().toLowerCase()
       const supabase = getSupabaseClient()
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: normalizedEmail,
         password,
         options: {
@@ -453,6 +518,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         const lowerMessage = error.message.toLowerCase()
 
+        if (lowerMessage.includes("database error saving new user")) {
+          return {
+            success: false,
+            message:
+              "O Supabase bloqueou a criação do perfil do usuário no banco. Rode o SQL `supabase/fix-new-user-trigger.sql` no SQL Editor para corrigir o trigger de novos usuários.",
+            requiresCode: false,
+            signedIn: false,
+          }
+        }
+
         if (
           canDirectLoginEmail(normalizedEmail) &&
           (lowerMessage.includes("already") || lowerMessage.includes("registered") || lowerMessage.includes("exists"))
@@ -463,10 +538,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           })
 
           if (signInResult.error) {
-            return { success: false, message: signInResult.error.message }
+            return { success: false, message: signInResult.error.message, signedIn: false }
           }
 
-          return { success: true, message: "Conta reconhecida e login realizado." }
+          return { success: true, message: "Conta reconhecida e login realizado.", signedIn: true }
         }
 
         if (isAuthThrottleMessage(error.message ?? "")) {
@@ -480,15 +555,53 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             success: true,
             message: "Se você já pediu um código, use o último recebido no e-mail. Não é necessário pedir outro agora.",
             requiresCode: false,
+            signedIn: false,
           }
         }
 
-        return { success: false, message: error.message, requiresCode: false }
+        return { success: false, message: error.message, requiresCode: false, signedIn: false }
       }
+
+      if (data.session?.user) {
+        void claimFreeTrialSignup(normalizedEmail)
+        return {
+          success: true,
+          message: "Conta criada com sucesso.",
+          requiresCode: false,
+          signedIn: true,
+        }
+      }
+
+      const signInResult = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      })
+
+      if (!signInResult.error) {
+        void claimFreeTrialSignup(normalizedEmail)
+        return {
+          success: true,
+          message: "Conta criada com sucesso.",
+          requiresCode: false,
+          signedIn: true,
+        }
+      }
+
+      if (isEmailConfirmationRequiredMessage(signInResult.error.message ?? "")) {
+        return {
+          success: true,
+          message:
+            "A conta foi criada, mas ainda não pode entrar porque o Supabase deste projeto exige confirmação por e-mail. Se esse e-mail não chega, desative a confirmação de e-mail no Supabase ou configure o envio corretamente.",
+          requiresCode: false,
+          signedIn: false,
+        }
+      }
+
       return {
-        success: true,
-        message: "Conta criada. Agora confirme seu e-mail pelo link que enviamos para continuar.",
+        success: false,
+        message: signInResult.error.message,
         requiresCode: false,
+        signedIn: false,
       }
     }
 
@@ -511,7 +624,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     setUsers((prev) => [...prev, newUser])
     setCurrentUser(newUser)
-    return { success: true, requiresCode: false }
+    void claimFreeTrialSignup(normalizedEmail)
+    return { success: true, requiresCode: false, signedIn: true }
   }
 
   const loginUser = async (email: string, password: string) => {
@@ -520,38 +634,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const normalizedPassword = password.trim()
       const supabase = getSupabaseClient()
 
-      if (canDirectLoginEmail(normalizedEmail)) {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: normalizedEmail,
-          password: normalizedPassword,
-        })
-
-        if (error) {
-          return { success: false, message: error.message, requiresCode: false }
-        }
-
-        return { success: true, requiresCode: false }
-      }
       const passwordValidation = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
         password: normalizedPassword,
       })
 
       if (passwordValidation.error) {
+        if (isEmailConfirmationRequiredMessage(passwordValidation.error.message ?? "")) {
+          return {
+            success: false,
+            message:
+              "Sua conta existe, mas o Supabase ainda está exigindo confirmação por e-mail. Se você não recebeu nada, ajuste isso no painel do Supabase.",
+            requiresCode: false,
+          }
+        }
+
         return {
           success: false,
-          message: "E-mail ou senha inválidos, ou a conta ainda não foi criada.",
+          message: "E-mail ou senha inválidos.",
           requiresCode: false,
         }
       }
-
-      await supabase.auth.signOut()
-
-      const result = await sendEmailCode(normalizedEmail, false)
-      return {
-        ...result,
-        requiresCode: result.success,
-      }
+      return { success: true, requiresCode: false }
     }
 
     const normalizedEmail = email.trim().toLowerCase()
@@ -733,6 +837,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return { success: true, message: "Plano atualizado com sucesso." }
   }
 
+  const refreshCurrentUser = async () => {
+    if (!currentUser || !isSupabaseConfigured) return
+    await refreshSupabaseStateByUserId(currentUser.id)
+  }
+
   const saveCurrentUserProfile = async (profile: EditorProfile) => {
     if (!currentUser) {
       return { success: false, message: "Faça login para salvar seu perfil." }
@@ -753,6 +862,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         editTools: [...new Set(profile.editTools ?? [])],
         videoStyles: [...new Set(profile.videoStyles ?? [])],
         contactValue: profile.contactValue.trim(),
+        themeColors: profile.themeColors,
       }
 
       const existingSlugs = users.filter((user) => user.id !== currentUser.id).map((user) => user.profile.slug)
@@ -784,6 +894,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             videoStyles: normalizedProfile.videoStyles,
             contactMethod: normalizedProfile.contactMethod,
             contactValue: normalizedProfile.contactValue,
+            themeColors: normalizedProfile.themeColors,
           }),
         })
       } catch (error) {
@@ -893,7 +1004,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           location: payload.location,
           format: payload.format,
           salary: payload.salary,
-          description: payload.description,
+          description: serializeJobDescription(payload.description, payload.referenceLink),
+          referenceLink: payload.referenceLink,
           contact: payload.contact,
           status: "open",
         }),
@@ -905,12 +1017,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
 
       await loadSupabaseJobs(currentUser)
-      return { success: true, message: "Job published successfully." }
+      return { success: true, message: "Vaga publicada com sucesso." }
     }
 
     const newJob: JobPost = {
       id: crypto.randomUUID(),
       ...payload,
+      description: payload.description.trim(),
+      referenceLink: payload.referenceLink.trim(),
       publishedById: currentUser.id,
       publishedBy: currentUser.email,
       status: "open",
@@ -1009,6 +1123,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         signInWithGoogle,
         logoutUser,
         updateCurrentUserPlan,
+        refreshCurrentUser,
         saveCurrentUserProfile,
         createJob,
         deleteJob,

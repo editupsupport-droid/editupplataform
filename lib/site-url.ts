@@ -11,5 +11,9 @@ export const getSiteUrl = () => {
     return `https://${process.env.VERCEL_URL}`
   }
 
+  if (process.env.NODE_ENV === "production") {
+    return "https://editupp.vercel.app"
+  }
+
   return "http://localhost:3000"
 }

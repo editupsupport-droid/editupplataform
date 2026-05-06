@@ -21,6 +21,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useAppSession } from "@/components/app/app-provider"
+import { useAppPreferences } from "@/components/app/preferences-provider"
 import { FeedbackBanner } from "@/components/dashboard/feedback-banner"
 import { PageEmptyState } from "@/components/dashboard/page-empty-state"
 import { PageLoadingState } from "@/components/dashboard/page-loading-state"
@@ -42,6 +43,7 @@ import {
 
 export default function FinanceiroPage() {
   const { currentUser } = useAppSession()
+  const { formatCurrency } = useAppPreferences()
   const [transacoes, setTransacoes] = useState<FinanceTransaction[]>([])
   const [clientes, setClientes] = useState<string[]>([])
   const [gastosFixos, setGastosFixos] = useState<FixedExpense[]>([])
@@ -68,8 +70,8 @@ export default function FinanceiroPage() {
     categoria: "Software"
   })
 
-  const categoriasEntrada = ["Freelance", "Package", "Project", "Bonus", "Other"]
-  const categoriasSaida = ["Software", "Equipment", "Infrastructure", "Courses", "Taxes", "Other"]
+  const categoriasEntrada = ["Freelance", "Pacote", "Projeto", "Receita prevista", "Bônus", "Outro"]
+  const categoriasSaida = ["Software", "Equipamento", "Infraestrutura", "Cursos", "Impostos", "Outro"]
 
   useEffect(() => {
     if (!currentUser) return
@@ -110,7 +112,7 @@ export default function FinanceiroPage() {
         setGastosFixos(workspaceExpenses)
       } catch (error) {
         console.error(error)
-        setFeedbackError(error instanceof Error ? error.message : "Não foi possível carregar os dados financeiros.")
+      setFeedbackError(error instanceof Error ? error.message : "Não foi possível carregar os dados financeiros.")
       } finally {
         setIsLoading(false)
       }
@@ -158,13 +160,6 @@ export default function FinanceiroPage() {
 
   const saldoLiquido = totalEntradas - totalSaidas - totalGastosFixos
   const isNegativo = saldoLiquido < 0
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL"
-    }).format(value)
-  }
-
   const financeSummary = [
     {
       label: "Entradas",
@@ -199,7 +194,7 @@ export default function FinanceiroPage() {
   const handleAddTransacao = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!currentUser) {
-      setFeedbackError("Faça login novamente para adicionar uma transação.")
+      setFeedbackError("Entre novamente para adicionar uma transação.")
       return
     }
 
@@ -231,7 +226,7 @@ export default function FinanceiroPage() {
   const handleAddGastoFixo = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!currentUser) {
-      setFeedbackError("Faça login novamente para adicionar um gasto fixo.")
+      setFeedbackError("Entre novamente para adicionar um gasto fixo.")
       return
     }
 
@@ -264,10 +259,10 @@ export default function FinanceiroPage() {
       setFeedbackError("")
       await deleteFinanceTransaction(currentUser.id, id)
       setTransacoes((prev) => prev.filter((t) => t.id !== id))
-      setFeedbackMessage("Transação removida com sucesso.")
+      setFeedbackMessage("Transação excluída com sucesso.")
     } catch (error) {
       console.error(error)
-      setFeedbackError(error instanceof Error ? error.message : "Não foi possível remover a transação.")
+      setFeedbackError(error instanceof Error ? error.message : "Não foi possível excluir a transação.")
     }
   }
 
@@ -278,10 +273,10 @@ export default function FinanceiroPage() {
       setFeedbackError("")
       await deleteFixedExpense(currentUser.id, id)
       setGastosFixos((prev) => prev.filter((g) => g.id !== id))
-      setFeedbackMessage("Gasto fixo removido com sucesso.")
+      setFeedbackMessage("Gasto fixo excluído com sucesso.")
     } catch (error) {
       console.error(error)
-      setFeedbackError(error instanceof Error ? error.message : "Não foi possível remover o gasto fixo.")
+      setFeedbackError(error instanceof Error ? error.message : "Não foi possível excluir o gasto fixo.")
     }
   }
 
@@ -294,18 +289,13 @@ export default function FinanceiroPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold text-foreground">Finanças</h1>
-          <p className="mt-1 max-w-2xl text-muted-foreground">Uma visão clara do que entrou, do que saiu e do que realmente sobra depois dos custos fixos.</p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <div className="rounded-2xl border border-border bg-background/70 px-4 py-3 text-sm text-muted-foreground">
-            Pense nesta página como um caderno calmo de caixa, não como um painel barulhento.
-          </div>
+      <div>
+        <h1 className="text-3xl font-semibold text-foreground">Financeiro</h1>
+      </div>
+
           <Dialog open={dialogTransacaoOpen} onOpenChange={setDialogTransacaoOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
+              <Button className="hidden bg-primary hover:bg-primary/90 text-primary-foreground">
                 <Plus className="w-4 h-4 mr-2" />
                 Nova transação
               </Button>
@@ -407,7 +397,7 @@ export default function FinanceiroPage() {
                           <SelectValue placeholder="Selecione um cliente se quiser" />
                         </SelectTrigger>
                         <SelectContent className="bg-card border-border">
-                          <SelectItem value="no-client">Nenhum cliente vinculado</SelectItem>
+                          <SelectItem value="no-client">Sem cliente vinculado</SelectItem>
                           {clientes.map((cliente) => (
                             <SelectItem key={cliente} value={cliente}>{cliente}</SelectItem>
                           ))}
@@ -438,8 +428,6 @@ export default function FinanceiroPage() {
               </form>
             </DialogContent>
           </Dialog>
-        </div>
-      </div>
 
       <FeedbackBanner message={feedbackMessage} type="success" />
       <FeedbackBanner message={feedbackError} type="error" />
@@ -499,17 +487,23 @@ export default function FinanceiroPage() {
         {/* Lista de Transações */}
         <div className="lg:col-span-2">
           <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-foreground">Transações recentes</CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Histórico de entradas e saídas
-              </CardDescription>
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle className="text-foreground">Transações recentes</CardTitle>
+                <CardDescription className="text-muted-foreground">
+                  Histórico de entradas e saídas
+                </CardDescription>
+              </div>
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => setDialogTransacaoOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Nova transação
+              </Button>
             </CardHeader>
             <CardContent>
               {transacoes.length === 0 ? (
                 <PageEmptyState
                   icon={<TrendingUp className="h-7 w-7" />}
-                  title="Nenhuma transação por enquanto"
+                  title="Ainda não há transações"
                   description="Adicione sua primeira entrada ou saída para começar a acompanhar o caixa com clareza."
                   actionLabel="Nova transação"
                   onAction={() => setDialogTransacaoOpen(true)}
@@ -658,7 +652,7 @@ export default function FinanceiroPage() {
               {gastosFixos.length === 0 ? (
                 <PageEmptyState
                   icon={<DollarSign className="h-7 w-7" />}
-                  title="Nenhum gasto fixo por enquanto"
+                  title="No fixed expenses yet"
                   description="Cadastre custos recorrentes como software, infraestrutura ou impostos para acompanhar seu saldo real."
                   actionLabel="Novo gasto fixo"
                   onAction={() => setDialogGastoFixoOpen(true)}

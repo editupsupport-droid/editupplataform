@@ -16,6 +16,7 @@ create table if not exists public.profiles (
   contact_value text default '',
   plan text not null default 'free',
   can_publish_jobs boolean not null default false,
+  quote_form_config jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -47,6 +48,20 @@ create table if not exists public.proposals (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.quote_presets (
+  id uuid primary key default gen_random_uuid(),
+  editor_id uuid not null references public.profiles(id) on delete cascade,
+  name text not null,
+  description text not null default '',
+  category_id text not null,
+  add_on_ids jsonb not null default '[]'::jsonb,
+  answers jsonb not null default '{}'::jsonb,
+  manual_adjustment integer not null default 0,
+  client_message text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.clients (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -57,6 +72,8 @@ create table if not exists public.clients (
   average_duration integer default 15,
   frequency text default '',
   drive_link text default '',
+  drive_folder_id text,
+  drive_folder_name text default '',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -70,6 +87,22 @@ create table if not exists public.board_cards (
   position integer not null default 0,
   approval_token_hash text,
   approval_expires_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.approval_links (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  task_id uuid not null references public.board_cards(id) on delete cascade,
+  token text not null unique,
+  file_id text,
+  file_name text default '',
+  file_url text default '',
+  permission_id text,
+  source_type text not null default 'manual',
+  expires_at timestamptz not null,
+  status text not null default 'active',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -116,10 +149,28 @@ security definer
 set search_path = public
 as $$
 declare
+  base_slug text;
   generated_slug text;
+  suffix_counter integer := 1;
 begin
-  generated_slug := regexp_replace(lower(coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1))), '[^a-z0-9]+', '-', 'g');
-  generated_slug := trim(both '-' from generated_slug);
+  base_slug := regexp_replace(lower(coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1))), '[^a-z0-9]+', '-', 'g');
+  base_slug := trim(both '-' from base_slug);
+
+  if base_slug = '' then
+    base_slug := split_part(new.email, '@', 1);
+  end if;
+
+  generated_slug := base_slug;
+
+  while exists (
+    select 1
+    from public.profiles
+    where slug = generated_slug
+      and id <> new.id
+  ) loop
+    suffix_counter := suffix_counter + 1;
+    generated_slug := concat(base_slug, '-', suffix_counter);
+  end loop;
 
   insert into public.profiles (
     id,
@@ -134,15 +185,18 @@ begin
     new.id,
     new.email,
     coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
-    case
-      when generated_slug = '' then split_part(new.email, '@', 1)
-      else generated_slug
-    end,
+    generated_slug,
     new.email,
     'free',
     new.email in ('muriloeditor2023@gmail.com', 'marinhojose1103@gmail.com')
   )
-  on conflict (id) do nothing;
+  on conflict (id) do update
+  set
+    email = excluded.email,
+    full_name = excluded.full_name,
+    slug = excluded.slug,
+    contact_value = excluded.contact_value,
+    updated_at = now();
 
   return new;
 end;

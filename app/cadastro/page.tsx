@@ -7,28 +7,28 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Check, KeyRound, ShieldCheck } from "lucide-react"
+import { ArrowLeft, Check, KeyRound, Sparkles } from "lucide-react"
 import { useAppSession } from "@/components/app/app-provider"
 import { canDirectLoginEmail } from "@/lib/app-data"
 
 const PLAN_CONTENT = {
   free: [
-    "Toda conta nova comeca no Free",
-    "Acesso a calculadora de valores",
-    "Upgrade quando quiser",
+    "Toda conta começa no plano Free",
+    "Acesso à calculadora de propostas",
+    "Upgrade disponível a qualquer momento",
   ],
   starter: [
-    "Calculadora de valores",
-    "Pack completo de edicao",
-    "Acesso somente a esses dois recursos",
-    "Acesso vitalicio",
+    "Calculadora de propostas",
+    "Pack completo de edição",
+    "Acesso vitalício aos recursos do plano",
+    "Ideal para organizar os primeiros projetos",
   ],
   essential: [
     "Tudo do Starter",
-    "Acesso total a plataforma",
+    "Acesso completo à plataforma",
+    "CRM, Agenda, Financeiro e Drive",
     "Comunidade privada",
-    "Acesso total ao Creative Cloud mensal",
-    "Suporte prioritario",
+    "Suporte prioritário",
   ],
 } as const
 
@@ -40,9 +40,7 @@ export default function CadastroPage() {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [token, setToken] = useState("")
-  const [codeSent, setCodeSent] = useState(false)
-  const { registerUser, verifyEmailCode, signInWithGoogle } = useAppSession()
+  const { registerUser, signInWithGoogle } = useAppSession()
   const [selectedPlan, setSelectedPlan] = useState<keyof typeof PLAN_CONTENT>("free")
   const planItems = PLAN_CONTENT[selectedPlan] ?? PLAN_CONTENT.free
 
@@ -59,7 +57,6 @@ export default function CadastroPage() {
     setIsLoading(true)
     setErrorMessage("")
     setSuccessMessage("")
-    setCodeSent(false)
 
     try {
       const result = await registerUser({
@@ -75,42 +72,15 @@ export default function CadastroPage() {
 
       const normalizedEmail = email.trim().toLowerCase()
 
-      if (canDirectLoginEmail(normalizedEmail)) {
+      if (result.signedIn || canDirectLoginEmail(normalizedEmail)) {
         router.push("/dashboard/calculadora")
         return
-      }
-
-      if (result.requiresCode) {
-        setCodeSent(true)
       }
 
       setSuccessMessage(result.message ?? "Conta criada com sucesso.")
     } catch (error) {
       console.error(error)
       setErrorMessage(error instanceof Error ? error.message : "Nao foi possivel criar sua conta.")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleVerifyCode = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setErrorMessage("")
-    setSuccessMessage("")
-
-    try {
-      const result = await verifyEmailCode(email, token)
-
-      if (!result.success) {
-        setErrorMessage(result.message ?? "Nao foi possivel verificar o codigo.")
-        return
-      }
-
-      router.push("/dashboard/calculadora")
-    } catch (error) {
-      console.error(error)
-      setErrorMessage(error instanceof Error ? error.message : "Nao foi possivel verificar o codigo.")
     } finally {
       setIsLoading(false)
     }
@@ -128,10 +98,10 @@ export default function CadastroPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      {/* Background gradient */}
+    <div className="flex min-h-screen flex-col overflow-hidden bg-background">
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-40 left-1/2 h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-primary/10 blur-[128px]" />
+        <div className="absolute -top-40 left-1/2 h-[620px] w-[620px] -translate-x-1/2 rounded-full bg-primary/16 blur-[128px]" />
+        <div className="absolute bottom-0 right-0 h-[420px] w-[420px] rounded-full bg-primary/8 blur-[120px]" />
       </div>
 
       <div className="relative flex flex-1 flex-col items-center justify-center px-4 py-12">
@@ -144,15 +114,21 @@ export default function CadastroPage() {
         </Link>
 
         <div className="mb-8 flex justify-center">
-          <img src="/logo.jpeg" alt="Astherisch" className="h-14 w-auto object-contain sm:h-16" />
+          <div className="rounded-2xl border border-border bg-card/80 p-2 shadow-2xl">
+            <img src="/logo.jpeg" alt="EditUp" className="h-12 w-12 rounded-xl object-cover sm:h-14 sm:w-14" />
+          </div>
         </div>
 
-        <div className="grid w-full max-w-4xl gap-8 md:grid-cols-2">
-          <Card className="border-border bg-card">
+        <div className="grid w-full max-w-5xl gap-6 md:grid-cols-[0.95fr,1.05fr]">
+          <Card className="border-border bg-card/95">
             <CardHeader>
+              <div className="mb-3 inline-flex w-fit items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                <Sparkles className="h-3.5 w-3.5" />
+                Comece em minutos
+              </div>
               <CardTitle className="text-2xl text-foreground">Criar conta</CardTitle>
               <CardDescription className="text-muted-foreground">
-                Continue com Google ou crie sua conta com email e senha
+                Continue com Google ou crie sua conta com email e senha.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -226,39 +202,13 @@ export default function CadastroPage() {
                   </Button>
                 </form>
 
-                {codeSent && (
-                  <form onSubmit={handleVerifyCode} className="space-y-4 rounded-xl border border-border p-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="token" className="text-foreground">Codigo do email</Label>
-                      <Input
-                        id="token"
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="Digite o codigo recebido"
-                        required
-                        value={token}
-                        onChange={(e) => setToken(e.target.value)}
-                        className="border-border bg-input text-foreground placeholder:text-muted-foreground"
-                      />
-                    </div>
-                    <Button
-                      type="submit"
-                      className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-                      disabled={isLoading}
-                    >
-                      <ShieldCheck className="mr-2 h-4 w-4" />
-                      {isLoading ? "Verificando..." : "Verificar e entrar"}
-                    </Button>
-                  </form>
-                )}
-
                 {successMessage && <p className="text-sm text-primary">{successMessage}</p>}
                 {errorMessage && <p className="text-sm text-destructive">{errorMessage}</p>}
               </div>
             </CardContent>
             <CardFooter className="justify-center">
               <p className="text-sm text-muted-foreground">
-                Ja tem conta?{" "}
+                Já tem conta?{" "}
                 <Link href="/login" className="text-primary hover:underline">
                   Entrar
                 </Link>
@@ -266,9 +216,9 @@ export default function CadastroPage() {
             </CardFooter>
           </Card>
 
-          <div className="hidden flex-col justify-center md:flex">
-            <h3 className="mb-2 text-xl font-semibold text-foreground">
-              O que voce recebe no plano {selectedPlan === "free" ? "Free" : selectedPlan === "starter" ? "Starter" : "Essential"}:
+          <div className="hidden flex-col justify-center rounded-3xl border border-border bg-card/70 p-8 md:flex">
+            <h3 className="mb-2 text-2xl font-semibold text-foreground">
+              O que você recebe no plano {selectedPlan === "free" ? "Free" : selectedPlan === "starter" ? "Starter" : "Essential"}:
             </h3>
             <p className="mb-6 text-sm text-muted-foreground">
               Recursos e acessos de acordo com o plano selecionado na landing page.

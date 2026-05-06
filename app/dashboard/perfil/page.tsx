@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { CONTACT_METHOD_LABELS, EDIT_TOOL_LABELS, EditorProfile, PROFILE_LANGUAGE_LABELS, slugify, VIDEO_STYLE_LABELS } from "@/lib/app-data"
 import { Check, Copy, ExternalLink, Plus, Save, Trash2, User } from "lucide-react"
 import { useAppSession } from "@/components/app/app-provider"
+import { copyTextToClipboard } from "@/lib/clipboard"
 
 const editTools = Object.entries(EDIT_TOOL_LABELS)
 const videoStyles = Object.entries(VIDEO_STYLE_LABELS)
@@ -33,6 +34,12 @@ export default function PerfilPage() {
     photoUrl: profile.photoUrl ?? "",
     contactValue: profile.contactValue ?? "",
     language: profile.language ?? "pt-BR",
+    themeColors: profile.themeColors ?? {
+      pageBackground: "#0b1020",
+      cardBackground: "#11182d",
+      textColor: "#f8fafc",
+      accentColor: "#37352F",
+    },
   })
 
   const serializeProfile = (profile: EditorProfile) =>
@@ -42,6 +49,7 @@ export default function PerfilPage() {
       videoUrls: normalizeProfile(profile).videoUrls.map((url) => url.trim()),
       editTools: [...normalizeProfile(profile).editTools].sort(),
       videoStyles: [...normalizeProfile(profile).videoStyles].sort(),
+      themeColors: normalizeProfile(profile).themeColors,
     })
 
   useEffect(() => {
@@ -83,76 +91,29 @@ export default function PerfilPage() {
 
   const handleCopyLink = async () => {
     if (!publicLink) return
-    await navigator.clipboard.writeText(publicLink)
-    setCopied(true)
-    window.setTimeout(() => setCopied(false), 1500)
+    const didCopy = await copyTextToClipboard(publicLink)
+    if (didCopy) {
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    }
   }
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
-      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <Card className="overflow-hidden border-primary/20 bg-[linear-gradient(135deg,rgba(0,34,254,0.18),rgba(0,34,254,0.04))]">
-          <CardContent className="p-6 sm:p-8">
-            <p className="text-xs uppercase tracking-[0.24em] text-foreground/55">Perfil profissional</p>
-            <h1 className="mt-3 text-3xl font-semibold text-foreground md:text-4xl">Mostre apenas o que o cliente precisa para confiar e contratar você.</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-foreground/70">
-              Esta página deve funcionar como um perfil limpo: identidade, especialidade, prova de trabalho e um caminho claro de contato.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link href={`/${formData.slug}`} target="_blank">
-                <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-                  Ver perfil público
-                  <ExternalLink className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-              <Button type="button" variant="outline" className="border-border bg-background/60" onClick={handleCopyLink}>
-                {copied ? <Check className="mr-2 h-4 w-4 text-primary" /> : <Copy className="mr-2 h-4 w-4" />}
-                Copiar link
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border bg-card">
-          <CardHeader>
-            <CardTitle className="text-foreground">Resumo do perfil</CardTitle>
-            <CardDescription className="text-muted-foreground">
-              O essencial que as pessoas avaliam em segundos.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div
-                className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-secondary bg-cover bg-center"
-                style={formData.photoUrl ? { backgroundImage: `url(${formData.photoUrl})` } : undefined}
-              >
-                {!formData.photoUrl && <User className="h-7 w-7 text-muted-foreground" />}
-              </div>
-              <div>
-                <p className="text-lg font-semibold text-foreground">{formData.fullName || "Seu nome"}</p>
-                <p className="text-sm text-muted-foreground">{formData.professionalTitle || "Editor de vídeo"}</p>
-              </div>
-            </div>
-            <div className="rounded-2xl border border-border bg-background/80 p-4">
-              <p className="text-sm leading-6 text-muted-foreground">
-                {formData.bio?.trim() || "Escreva um posicionamento curto para o cliente entender rapidamente seu estilo e valor."}
-              </p>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Idioma: <span className="font-medium text-foreground">{PROFILE_LANGUAGE_LABELS[formData.language]}</span>
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {formData.videoStyles.length > 0 ? (
-                formData.videoStyles.map((style) => <Badge key={style} variant="secondary">{VIDEO_STYLE_LABELS[style]}</Badge>)
-              ) : (
-                <span className="text-sm text-muted-foreground">Selecione pelo menos um estilo de vídeo.</span>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Contato principal: <span className="font-medium text-foreground">{CONTACT_METHOD_LABELS[formData.contactMethod]} • {formData.contactValue || "Adicione seu contato"}</span>
-            </p>
-          </CardContent>
-        </Card>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold text-foreground md:text-3xl">Página Profissional</h1>
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/${formData.slug}`} target="_blank">
+            <Button variant="outline" className="border-border">
+              Ver perfil público
+              <ExternalLink className="ml-2 h-4 w-4" />
+            </Button>
+          </Link>
+          <Button type="button" variant="outline" className="border-border" onClick={handleCopyLink}>
+            {copied ? <Check className="mr-2 h-4 w-4 text-primary" /> : <Copy className="mr-2 h-4 w-4" />}
+            Copiar link
+          </Button>
+        </div>
       </div>
 
       {/* Profile Picture */}
@@ -343,6 +304,66 @@ export default function PerfilPage() {
             />
           )}
           <div className="space-y-3">
+            <Label className="text-foreground">Cores da página pública</Label>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+              <Label className="text-foreground">Fundo</Label>
+                <Input
+                  type="color"
+                  value={formData.themeColors.pageBackground}
+                  onChange={(e) => setFormData({ ...formData, themeColors: { ...formData.themeColors, pageBackground: e.target.value } })}
+                  className="h-12 border-border bg-input p-2"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-foreground">Fundo dos cards</Label>
+                <Input
+                  type="color"
+                  value={formData.themeColors.cardBackground}
+                  onChange={(e) => setFormData({ ...formData, themeColors: { ...formData.themeColors, cardBackground: e.target.value } })}
+                  className="h-12 border-border bg-input p-2"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-foreground">Texto</Label>
+                <Input
+                  type="color"
+                  value={formData.themeColors.textColor}
+                  onChange={(e) => setFormData({ ...formData, themeColors: { ...formData.themeColors, textColor: e.target.value } })}
+                  className="h-12 border-border bg-input p-2"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-foreground">Cor de destaque</Label>
+                <Input
+                  type="color"
+                  value={formData.themeColors.accentColor}
+                  onChange={(e) => setFormData({ ...formData, themeColors: { ...formData.themeColors, accentColor: e.target.value } })}
+                  className="h-12 border-border bg-input p-2"
+                />
+              </div>
+            </div>
+          </div>
+          <div
+            className="rounded-2xl border p-4"
+            style={{
+              backgroundColor: formData.themeColors.cardBackground,
+              color: formData.themeColors.textColor,
+              borderColor: `${formData.themeColors.accentColor}55`,
+            }}
+          >
+            <p className="text-sm font-medium" style={{ color: formData.themeColors.textColor }}>Prévia da página pública</p>
+            <p className="mt-2 text-sm" style={{ color: `${formData.themeColors.textColor}CC` }}>
+              Seu perfil público vai usar essas cores no fundo, nos cards, nos textos e nos destaques.
+            </p>
+            <div
+              className="mt-3 inline-flex rounded-full px-3 py-1 text-xs font-medium"
+              style={{ backgroundColor: `${formData.themeColors.accentColor}22`, color: formData.themeColors.accentColor }}
+            >
+              Prévia do destaque
+            </div>
+          </div>
+          <div className="space-y-3">
             <Label className="text-foreground">Ferramentas de edição</Label>
             <div className="flex flex-wrap gap-2">
               {editTools.map(([value, label]) => {
@@ -473,6 +494,11 @@ export default function PerfilPage() {
               <span className="text-sm text-muted-foreground">Selecione pelo menos uma ferramenta de edição.</span>
             )}
           </div>
+          {formData.editTools.length > 0 && (
+            <p className="text-sm text-muted-foreground">
+              Se você selecionar After Effects ou qualquer outro app, ele vai aparecer publicamente como parte da sua stack de edição.
+            </p>
+          )}
           <div className="flex flex-wrap gap-2">
             {formData.videoStyles.length > 0 ? (
               formData.videoStyles.map((style) => <Badge key={style} variant="secondary">{VIDEO_STYLE_LABELS[style]}</Badge>)

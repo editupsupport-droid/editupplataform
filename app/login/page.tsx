@@ -7,26 +7,26 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, KeyRound, Mail, ShieldCheck } from "lucide-react"
+import { ArrowLeft, KeyRound, ShieldCheck, Sparkles } from "lucide-react"
 import { useAppSession } from "@/components/app/app-provider"
 
 const PLAN_CONTENT = {
   free: [
-    "Toda conta nova começa no Free",
-    "Acesso à calculadora de valores",
-    "Upgrade quando quiser",
+    "Toda conta começa no plano Free",
+    "Acesso à calculadora de propostas",
+    "Upgrade disponível a qualquer momento",
   ],
   starter: [
-    "Calculadora de valores",
+    "Calculadora de propostas",
     "Pack completo de edição",
-    "Acesso somente a esses dois recursos",
-    "Acesso vitalício",
+    "Acesso vitalício aos recursos do plano",
+    "Ideal para organizar os primeiros projetos",
   ],
   essential: [
     "Tudo do Starter",
-    "Acesso total à plataforma",
+    "Acesso completo à plataforma",
+    "CRM, Agenda, Financeiro e Drive",
     "Comunidade privada",
-    "Acesso total ao Creative Cloud mensal",
     "Suporte prioritário",
   ],
 } as const
@@ -38,9 +38,7 @@ export default function LoginPage() {
   const [successMessage, setSuccessMessage] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [token, setToken] = useState("")
-  const [codeSent, setCodeSent] = useState(false)
-  const { loginUser, verifyEmailCode, signInWithGoogle } = useAppSession()
+  const { loginUser, signInWithGoogle } = useAppSession()
   const [selectedPlan, setSelectedPlan] = useState<keyof typeof PLAN_CONTENT>("free")
   const planItems = PLAN_CONTENT[selectedPlan] ?? PLAN_CONTENT.free
 
@@ -57,36 +55,12 @@ export default function LoginPage() {
     setIsLoading(true)
     setErrorMessage("")
     setSuccessMessage("")
-    setCodeSent(false)
 
     const result = await loginUser(email, password)
     setIsLoading(false)
 
     if (!result.success) {
       setErrorMessage(result.message ?? "Nao foi possivel entrar.")
-      return
-    }
-
-    if (result.requiresCode) {
-      setCodeSent(true)
-      setSuccessMessage(result.message ?? "Codigo enviado.")
-      return
-    }
-
-    router.push("/dashboard/calculadora")
-  }
-
-  const handleVerifyCode = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setErrorMessage("")
-    setSuccessMessage("")
-
-    const result = await verifyEmailCode(email, token)
-    setIsLoading(false)
-
-    if (!result.success) {
-      setErrorMessage(result.message ?? "Codigo invalido.")
       return
     }
 
@@ -105,10 +79,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      {/* Background gradient */}
+    <div className="flex min-h-screen flex-col overflow-hidden bg-background">
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-40 left-1/2 h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-primary/10 blur-[128px]" />
+        <div className="absolute -top-40 left-1/2 h-[620px] w-[620px] -translate-x-1/2 rounded-full bg-primary/16 blur-[128px]" />
+        <div className="absolute bottom-0 right-0 h-[420px] w-[420px] rounded-full bg-primary/8 blur-[120px]" />
       </div>
 
       <div className="relative flex flex-1 flex-col items-center justify-center px-4 py-12">
@@ -121,15 +95,21 @@ export default function LoginPage() {
         </Link>
 
         <div className="mb-8 flex justify-center">
-          <img src="/logo.jpeg" alt="Astherisch" className="h-14 w-auto object-contain sm:h-16" />
+          <div className="rounded-2xl border border-border bg-card/80 p-2 shadow-2xl">
+            <img src="/logo.jpeg" alt="EditUp" className="h-12 w-12 rounded-xl object-cover sm:h-14 sm:w-14" />
+          </div>
         </div>
 
-        <div className="grid w-full max-w-4xl gap-8 md:grid-cols-2">
-        <Card className="w-full max-w-md border-border bg-card md:max-w-none">
+        <div className="grid w-full max-w-5xl gap-6 md:grid-cols-[0.95fr,1.05fr]">
+        <Card className="w-full max-w-md border-border bg-card/95 md:max-w-none">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl text-foreground">Entrar</CardTitle>
+            <div className="mx-auto mb-3 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+              <Sparkles className="h-3.5 w-3.5" />
+              Workspace premium
+            </div>
+            <CardTitle className="text-2xl text-foreground">Entrar na EditUp</CardTitle>
             <CardDescription className="text-muted-foreground">
-              Continue com Google ou use email e senha para receber um codigo
+              Continue com Google ou acesse com email e senha.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -149,7 +129,7 @@ export default function LoginPage() {
                   <span className="w-full border-t border-border" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">ou continue com codigo</span>
+                  <span className="bg-card px-2 text-muted-foreground">ou continue com email</span>
                 </div>
               </div>
 
@@ -190,51 +170,25 @@ export default function LoginPage() {
                 </Button>
               </form>
 
-              {codeSent && (
-                <form onSubmit={handleVerifyCode} className="space-y-4 rounded-xl border border-border p-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="token" className="text-foreground">Codigo do email</Label>
-                    <Input
-                      id="token"
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="Digite o codigo recebido"
-                      required
-                      value={token}
-                      onChange={(e) => setToken(e.target.value)}
-                      className="border-border bg-input text-foreground placeholder:text-muted-foreground"
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-                    disabled={isLoading}
-                  >
-                    <ShieldCheck className="mr-2 h-4 w-4" />
-                    {isLoading ? "Verificando..." : "Verificar e entrar"}
-                  </Button>
-                </form>
-              )}
-
               {successMessage && <p className="text-sm text-primary">{successMessage}</p>}
               {errorMessage && <p className="text-sm text-destructive">{errorMessage}</p>}
             </div>
           </CardContent>
           <CardFooter className="justify-center">
             <p className="text-sm text-muted-foreground">
-              Ainda nao tem conta?{" "}
+              Ainda não tem conta?{" "}
               <Link href={`/cadastro?plan=${selectedPlan}`} className="text-primary hover:underline">
                 Criar conta
               </Link>
             </p>
           </CardFooter>
         </Card>
-          <div className="hidden flex-col justify-center md:flex">
-            <h3 className="mb-2 text-xl font-semibold text-foreground">
+          <div className="hidden flex-col justify-center rounded-3xl border border-border bg-card/70 p-8 md:flex">
+            <h3 className="mb-2 text-2xl font-semibold text-foreground">
               O plano {selectedPlan === "free" ? "Free" : selectedPlan === "starter" ? "Starter" : "Essential"} inclui:
             </h3>
             <p className="mb-6 text-sm text-muted-foreground">
-              Se voce veio da landing page, estes sao os recursos esperados para o plano selecionado.
+              Uma experiência limpa para precificar, organizar entregas e operar com mais confiança.
             </p>
             <ul className="space-y-4">
               {planItems.map((item) => (

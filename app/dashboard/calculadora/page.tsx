@@ -1,77 +1,75 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Calculator, Check, Copy, Info } from "lucide-react"
+import { Calculator, Check, Copy, FileText, Info, Link2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
+import { useAppPreferences } from "@/components/app/preferences-provider"
+import { copyTextToClipboard } from "@/lib/clipboard"
 
 const currencyOptions = [
   {
     id: "BRL",
     label: "Real brasileiro",
     locale: "pt-BR",
-    marketMultiplier: 2.35,
-    note: "Usa uma faixa pensada para o mercado brasileiro, não conversão direta do dólar.",
+    hourlyRate: 55,
+    note: "Faixa local pensada para o mercado brasileiro freelance, usando base por hora em vez de conversão direta.",
   },
   {
     id: "USD",
     label: "Dólar americano",
     locale: "en-US",
-    marketMultiplier: 1,
-    note: "Usa a faixa-base de referência internacional.",
+    hourlyRate: 35,
+    note: "Baseada em referências internacionais por hora para editores freelancers.",
   },
   {
     id: "EUR",
     label: "Euro",
     locale: "de-DE",
-    marketMultiplier: 0.92,
-    note: "Usa uma faixa ajustada para negociações em euro.",
+    hourlyRate: 32,
+    note: "Faixa ajustada para negociações em euro, também com base por hora.",
   },
 ] as const
 
 const videoTypes = [
-  { id: "reels", name: "Reels / TikTok", baseReference: 50, multiplier: 1 },
-  { id: "youtube-short", name: "YouTube Shorts", baseReference: 60, multiplier: 1.08 },
-  { id: "youtube", name: "YouTube até 10 min", baseReference: 150, multiplier: 1.45 },
-  { id: "youtube-long", name: "YouTube de 10 a 30 min", baseReference: 300, multiplier: 1.95 },
-  { id: "institucional", name: "Vídeo institucional / marca", baseReference: 500, multiplier: 2.4 },
-  { id: "podcast", name: "Corte de podcast", baseReference: 80, multiplier: 1.18 },
+  { id: "reels", name: "Reels / TikTok", baseHours: 1.5, durationWeight: 0.03 },
+  { id: "youtube-short", name: "YouTube Shorts", baseHours: 2, durationWeight: 0.035 },
+  { id: "youtube", name: "YouTube até 10 min", baseHours: 5, durationWeight: 0.04 },
+  { id: "youtube-long", name: "YouTube de 10 a 30 min", baseHours: 8, durationWeight: 0.045 },
+  { id: "institucional", name: "Vídeo institucional / marca", baseHours: 9, durationWeight: 0.045 },
+  { id: "podcast", name: "Corte de podcast", baseHours: 3, durationWeight: 0.035 },
 ] as const
 
 const complexityLevels = [
   { id: "simple", name: "Simples", description: "Cortes básicos, sem efeitos", multiplier: 1 },
-  { id: "medium", name: "Médio", description: "Transições, legendas e trilha", multiplier: 1.45 },
-  { id: "complex", name: "Complexo", description: "Motion e efeitos mais avançados", multiplier: 2.05 },
-  { id: "premium", name: "Premium", description: "Animação customizada e VFX", multiplier: 2.8 },
+  { id: "medium", name: "Médio", description: "Transições, legendas e trilha", multiplier: 1.25 },
+  { id: "complex", name: "Complexo", description: "Motion e efeitos mais avançados", multiplier: 1.6 },
+  { id: "premium", name: "Premium", description: "Animação customizada e VFX", multiplier: 2.2 },
 ] as const
 
 const urgencyLevels = [
   { id: "normal", name: "Normal (7+ dias)", multiplier: 1 },
-  { id: "fast", name: "Rápido (3 a 7 dias)", multiplier: 1.25 },
-  { id: "urgent", name: "Urgente (1 a 2 dias)", multiplier: 1.7 },
-  { id: "same-day", name: "Mesmo dia", multiplier: 2.35 },
+  { id: "fast", name: "Rápido (3 a 7 dias)", multiplier: 1.15 },
+  { id: "urgent", name: "Urgente (1 a 2 dias)", multiplier: 1.35 },
+  { id: "same-day", name: "Mesmo dia", multiplier: 1.7 },
 ] as const
 
 export default function CalculadoraPage() {
-  const [currency, setCurrency] = useState<(typeof currencyOptions)[number]["id"]>("BRL")
+  const { currency, setCurrency, formatCurrency } = useAppPreferences()
   const [videoType, setVideoType] = useState("")
   const [complexity, setComplexity] = useState("")
   const [urgency, setUrgency] = useState("")
   const [duration, setDuration] = useState([5])
   const [revisions, setRevisions] = useState([2])
   const [copied, setCopied] = useState(false)
+  const [proposalLink, setProposalLink] = useState("")
 
   const selectedCurrency = currencyOptions.find((option) => option.id === currency) ?? currencyOptions[0]
 
-  const formatPrice = (value: number) =>
-    new Intl.NumberFormat(selectedCurrency.locale, {
-      style: "currency",
-      currency: selectedCurrency.id,
-      maximumFractionDigits: 0,
-    }).format(Math.round(value))
+  const formatPrice = (value: number) => formatCurrency(Math.round(value), selectedCurrency.id)
 
   const calculatedPrice = useMemo(() => {
     if (!videoType || !complexity || !urgency) return null
@@ -82,32 +80,82 @@ export default function CalculadoraPage() {
 
     if (!video || !complexityLevel || !urgencyLevel) return null
 
-    const referenceBase = video.baseReference * video.multiplier
-    const complexityPrice = referenceBase * complexityLevel.multiplier
-    const urgencyPrice = complexityPrice * urgencyLevel.multiplier
-    const durationFactor = 1 + (duration[0] - 1) * 0.08
-    const revisionsFactor = 1 + (revisions[0] - 1) * 0.09
-    const localMarketPrice = urgencyPrice * durationFactor * revisionsFactor * selectedCurrency.marketMultiplier
+    const estimatedHours = video.baseHours * (1 + (duration[0] - 1) * video.durationWeight)
+    const revisionsFactor = 1 + (revisions[0] - 1) * 0.06
+    const baseProjectPrice = estimatedHours * selectedCurrency.hourlyRate
+    const adjustedProjectPrice =
+      baseProjectPrice * complexityLevel.multiplier * urgencyLevel.multiplier * revisionsFactor
 
     return {
-      min: Math.round(localMarketPrice * 0.9),
-      recommended: Math.round(localMarketPrice),
-      max: Math.round(localMarketPrice * 1.18),
+      min: Math.round(adjustedProjectPrice * 0.88),
+      recommended: Math.round(adjustedProjectPrice),
+      max: Math.round(adjustedProjectPrice * 1.18),
     }
-  }, [videoType, complexity, urgency, duration, revisions, selectedCurrency.marketMultiplier])
+  }, [videoType, complexity, urgency, duration, revisions, selectedCurrency.hourlyRate])
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     if (!calculatedPrice) return
 
-    navigator.clipboard.writeText(formatPrice(calculatedPrice.recommended))
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    const didCopy = await copyTextToClipboard(formatPrice(calculatedPrice.recommended))
+    if (didCopy) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  const selectedVideo = videoTypes.find((item) => item.id === videoType)
+  const selectedComplexity = complexityLevels.find((item) => item.id === complexity)
+  const selectedUrgency = urgencyLevels.find((item) => item.id === urgency)
+
+  const generateProposalLink = async () => {
+    if (!calculatedPrice || !selectedVideo || !selectedComplexity || !selectedUrgency) return
+
+    const proposalHtml = `<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Proposta EditUp</title>
+  <style>
+    body { font-family: Inter, ui-sans-serif, system-ui, sans-serif; margin: 0; background: #f7f8fb; color: #111827; }
+    main { max-width: 760px; margin: 40px auto; background: white; border: 1px solid #e5e7eb; border-radius: 18px; padding: 32px; }
+    img { width: 52px; height: 52px; border-radius: 14px; object-fit: cover; }
+    h1 { margin: 20px 0 8px; font-size: 30px; }
+    .price { margin: 24px 0; font-size: 42px; font-weight: 800; color: #2563eb; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 24px; }
+    .item { border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; }
+    .label { color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0; }
+    .value { margin-top: 6px; font-weight: 700; }
+    @media print { body { background: white; } main { margin: 0; border: 0; } }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="${window.location.origin}/logo.jpeg" alt="EditUp" />
+    <h1>Proposta de edição de vídeo</h1>
+    <p>Escopo sugerido a partir da calculadora profissional da EditUp.</p>
+    <div class="price">${formatPrice(calculatedPrice.recommended)}</div>
+    <div class="grid">
+      <div class="item"><div class="label">Tipo</div><div class="value">${selectedVideo.name}</div></div>
+      <div class="item"><div class="label">Complexidade</div><div class="value">${selectedComplexity.name}</div></div>
+      <div class="item"><div class="label">Prazo</div><div class="value">${selectedUrgency.name}</div></div>
+      <div class="item"><div class="label">Duração</div><div class="value">${duration[0]} min</div></div>
+      <div class="item"><div class="label">Revisões</div><div class="value">${revisions[0]} rodada(s)</div></div>
+      <div class="item"><div class="label">Faixa</div><div class="value">${formatPrice(calculatedPrice.min)} a ${formatPrice(calculatedPrice.max)}</div></div>
+    </div>
+    <p style="margin-top: 28px; color: #6b7280; font-size: 13px;">Valores podem ser ajustados após briefing, arquivos brutos e referências finais.</p>
+  </main>
+</body>
+</html>`
+    const link = `data:text/html;charset=utf-8,${encodeURIComponent(proposalHtml)}`
+    setProposalLink(link)
+    await copyTextToClipboard(link)
+    window.open(link, "_blank", "noopener,noreferrer")
   }
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-foreground md:text-3xl">Calculadora de valores</h1>
+        <h1 className="text-2xl font-bold text-foreground md:text-3xl">Calculadora de propostas</h1>
         <p className="mt-1 text-muted-foreground">
           Estime um valor mais coerente para seus projetos de edição com base no tipo de entrega, prazo e complexidade.
         </p>
@@ -251,6 +299,18 @@ export default function CalculadoraPage() {
                       </>
                     )}
                   </Button>
+                  <Button onClick={() => void generateProposalLink()} variant="outline" className="w-full gap-2 border-border">
+                    <FileText className="h-4 w-4" />
+                    Gerar proposta imprimível
+                  </Button>
+                  {proposalLink && (
+                    <a href={proposalLink} target="_blank" rel="noopener noreferrer" className="block">
+                      <Button variant="secondary" className="w-full gap-2">
+                        <Link2 className="h-4 w-4" />
+                        Abrir link da proposta
+                      </Button>
+                    </a>
+                  )}
                 </div>
               ) : (
                 <div className="py-12 text-center">
@@ -272,10 +332,10 @@ export default function CalculadoraPage() {
             </CardHeader>
             <CardContent>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>• A moeda altera a faixa com lógica de mercado, não só com conversão.</li>
-                <li>• Projetos urgentes precisam ter cobrança extra.</li>
-                <li>• Clientes recorrentes podem receber desconto se o volume compensar.</li>
-                <li>• Sempre considere seus custos de software, equipamento e tempo de revisão.</li>
+                <li>• A base agora usa horas estimadas de edição por tipo de projeto, não multiplicadores inflados.</li>
+                <li>• A faixa considera referências de mercado freelance por hora e tempo médio por formato.</li>
+                <li>• Projetos urgentes ainda precisam de cobrança extra, mas em nível mais realista.</li>
+                <li>• Sempre considere seus custos de software, equipamento, briefing e revisão.</li>
               </ul>
             </CardContent>
           </Card>

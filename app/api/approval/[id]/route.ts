@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { z } from "zod"
 import { parseReviewFeedback, serializeReviewFeedback } from "@/lib/review-utils"
+import { deleteDrivePermission } from "@/lib/google-drive"
+import { sanitizePlainText } from "@/lib/security"
 
 export const runtime = "nodejs"
 
@@ -58,6 +61,63 @@ const extractTokenFromApprovalLink = (approvalLink: string | null | undefined) =
   }
 }
 
+const isMissingApprovalLinksTable = (message?: string | null) =>
+  typeof message === "string" &&
+  (message.includes("approval_links") &&
+    (message.includes("schema cache") || message.includes("Could not find the table") || message.includes("does not exist")))
+
+const approvalResponseSchema = z.object({
+  action: z.enum(["approve", "revision"]),
+  items: z
+    .array(z.object({
+      id: z.string().trim().max(80).optional(),
+      timestamp: z.number().min(0).max(24 * 60 * 60).optional(),
+      note: z.string().trim().max(800).optional(),
+      completed: z.boolean().optional(),
+    }))
+    .max(80)
+    .optional(),
+})
+
+const getActiveApprovalRecord = async (
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  taskId: string,
+  token: string,
+  nowIso: string
+) => {
+  const lookup = await supabase
+    .from("approval_links")
+    .select("id,user_id,file_url,file_name,file_id,permission_id,source_type,status,expires_at")
+    .eq("task_id", taskId)
+    .eq("token", token)
+    .order("created_at", { ascending: false })
+    .maybeSingle()
+
+  if (lookup.error) {
+    if (isMissingApprovalLinksTable(lookup.error.message)) {
+      return { lookup: null, active: null, unavailable: false }
+    }
+    throw new Error(lookup.error.message)
+  }
+
+  const activeLookup = await supabase
+    .from("approval_links")
+    .select("id,user_id,file_url,file_name,file_id,permission_id,source_type,status,expires_at")
+    .eq("id", lookup.data?.id ?? "")
+    .eq("status", "active")
+    .gt("expires_at", nowIso)
+    .maybeSingle()
+
+  if (activeLookup.error) {
+    if (isMissingApprovalLinksTable(activeLookup.error.message)) {
+      return { lookup: null, active: null, unavailable: false }
+    }
+    throw new Error(activeLookup.error.message)
+  }
+
+  return { lookup: lookup.data ?? null, active: activeLookup.data ?? null, unavailable: Boolean(lookup.data && !activeLookup.data) }
+}
+
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params
@@ -73,6 +133,11 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     }
 
     const supabase = getSupabaseAdmin()
+    const nowIso = new Date().toISOString()
+    const approvalState = await getActiveApprovalRecord(supabase, id, token, nowIso)
+    const approvalLookup = approvalState.lookup
+    const approvalRecord = approvalState.active
+
     const { data: task, error } = await supabase
       .from("board_cards")
       .select(
@@ -85,7 +150,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       return NextResponse.json({ available: false }, { status: 404 })
     }
 
-    const validToken = extractTokenFromApprovalLink(task.approval_link) === token
+    const validToken =
+      approvalLookup
+        ? Boolean(approvalRecord)
+        : extractTokenFromApprovalLink(task.approval_link) === token
 
     if (!validToken || (task.client_status && task.client_status !== "pendente")) {
       return NextResponse.json({ available: false }, { status: 404 })
@@ -109,7 +177,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
         titulo: task.title,
         descricao: task.description ?? "",
         clienteNome: task.client_name ?? "",
-        linkDrive: task.drive_link ?? "",
+        linkDrive: approvalRecord?.file_url || task.drive_link || "",
         statusCliente: task.client_status ?? "pendente",
       },
       review: parseReviewFeedback(task.client_feedback),
@@ -125,12 +193,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   try {
     const { id } = await context.params
     const token = request.nextUrl.searchParams.get("token")?.trim() ?? ""
-    const body = (await request.json()) as {
-      action?: "approve" | "revision"
-      items?: Array<{ id?: string; timestamp?: number; note?: string; completed?: boolean }>
-    }
+    const body = approvalResponseSchema.parse(await request.json())
 
-    if (!id || !token || (body.action !== "approve" && body.action !== "revision")) {
+    if (!id || !token) {
       return NextResponse.json({ error: "Solicitação de aprovação inválida." }, { status: 400 })
     }
 
@@ -140,6 +205,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     }
 
     const supabase = getSupabaseAdmin()
+    const nowIso = new Date().toISOString()
+    const approvalState = await getActiveApprovalRecord(supabase, id, token, nowIso)
+    const approvalLookup = approvalState.lookup
+    const approvalRecord = approvalState.active
+
     const { data: currentTask, error: loadError } = await supabase
       .from("board_cards")
       .select("id,client_feedback,approval_link")
@@ -150,7 +220,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return NextResponse.json({ error: "Este link não está mais disponível." }, { status: 404 })
     }
 
-    if (extractTokenFromApprovalLink(currentTask.approval_link) !== token) {
+    if ((approvalLookup && !approvalRecord) || (!approvalLookup && extractTokenFromApprovalLink(currentTask.approval_link) !== token)) {
       return NextResponse.json({ error: "Este link não está mais disponível." }, { status: 404 })
     }
 
@@ -160,9 +230,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         ? (body.items ?? [])
             .filter((item) => typeof item.timestamp === "number" && typeof item.note === "string" && item.note.trim())
             .map((item, index) => ({
-              id: item.id?.trim() || `revision-${index + 1}`,
+              id: sanitizePlainText(item.id || "") || `revision-${index + 1}`,
               timestamp: Number(item.timestamp),
-              note: item.note?.trim() ?? "",
+              note: sanitizePlainText(item.note ?? ""),
               completed: Boolean(item.completed),
             }))
         : existingFeedback.revisionItems
@@ -171,9 +241,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return NextResponse.json({ error: "Adicione pelo menos um comentário na timeline." }, { status: 400 })
     }
 
-    const status = body.action === "approve" ? "concluido" : "refazendo"
+    const status = body.action === "approve" ? "concluido" : "desaprovado"
     const serializedFeedback = serializeReviewFeedback({
       priceUsd: existingFeedback.priceUsd,
+      pixKey: existingFeedback.pixKey,
       revisionItems: items,
     })
 
@@ -199,9 +270,31 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return NextResponse.json({ error: "Este link não está mais disponível." }, { status: 404 })
     }
 
+    if (approvalRecord?.id) {
+      await supabase
+        .from("approval_links")
+        .update({
+          status: body.action === "approve" ? "approved" : "revision-requested",
+        })
+        .eq("id", approvalRecord.id)
+    }
+
+    if (
+      approvalRecord?.source_type === "google-drive" &&
+      approvalRecord.file_id &&
+      approvalRecord.permission_id &&
+      approvalRecord.user_id
+    ) {
+      await deleteDrivePermission(approvalRecord.user_id, approvalRecord.file_id, approvalRecord.permission_id).catch(
+        () => undefined
+      )
+    }
+
     return NextResponse.json({ success: true, status, review: parseReviewFeedback(serializedFeedback) })
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Não foi possível enviar a resposta da aprovação."
-    return NextResponse.json({ error: message }, { status: 500 })
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: "Solicitação de aprovação inválida." }, { status: 400 })
+    }
+    return NextResponse.json({ error: "Não foi possível enviar a resposta da aprovação." }, { status: 500 })
   }
 }
