@@ -1,12 +1,38 @@
 import { NextResponse } from "next/server"
 
-const maskUrlHost = (value?: string) => {
-  if (!value) return null
+const inspectSupabaseUrl = (value?: string) => {
+  if (!value) {
+    return {
+      configured: false,
+      valid: false,
+      host: null,
+      path: null,
+      hasExtraPath: false,
+      expectedFormat: "https://seu-projeto.supabase.co",
+    }
+  }
 
   try {
-    return new URL(value).host
+    const url = new URL(value.trim().replace(/^['"]|['"]$/g, ""))
+    const path = url.pathname === "/" ? "" : url.pathname
+
+    return {
+      configured: true,
+      valid: url.protocol === "https:" && url.hostname.endsWith(".supabase.co"),
+      host: url.host,
+      path,
+      hasExtraPath: Boolean(path),
+      expectedFormat: "https://seu-projeto.supabase.co",
+    }
   } catch {
-    return "invalid-url"
+    return {
+      configured: true,
+      valid: false,
+      host: "invalid-url",
+      path: null,
+      hasExtraPath: false,
+      expectedFormat: "https://seu-projeto.supabase.co",
+    }
   }
 }
 
@@ -16,8 +42,7 @@ export function GET() {
 
   return NextResponse.json({
     supabase: {
-      urlConfigured: Boolean(supabaseUrl),
-      urlHost: maskUrlHost(supabaseUrl),
+      url: inspectSupabaseUrl(supabaseUrl),
       anonKeyConfigured: Boolean(supabaseAnonKey),
       serviceRoleConfigured: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
       databaseUrlConfigured: Boolean(process.env.DATABASE_URL),

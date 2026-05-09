@@ -1,9 +1,20 @@
 import { NextRequest } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
+const normalizeSupabaseUrl = (value?: string) => {
+  if (!value) return undefined
+
+  try {
+    const url = new URL(value.trim().replace(/^['"]|['"]$/g, ""))
+    return url.origin
+  } catch {
+    return value
+  }
+}
+
 export const createUserScopedServerClient = (request: NextRequest) => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const supabaseUrl = normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL)
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
   const authorization = request.headers.get("authorization")
 
   if (!supabaseUrl || !supabaseAnonKey) {
