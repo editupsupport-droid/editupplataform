@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { requireAuthenticatedUser } from "@/lib/supabase-server"
-import { enforceRateLimit, ensureTrustedOrigin } from "@/lib/security"
+import { enforceApiRateLimit, ensureSameOrigin, requireAdminAuthenticatedUser } from "@/lib/api-admin"
 
 export const runtime = "nodejs"
 
@@ -12,12 +11,12 @@ const schema = z.object({
 
 export async function PATCH(request: NextRequest) {
   try {
-    const originError = ensureTrustedOrigin(request)
+    const originError = ensureSameOrigin(request)
     if (originError) return originError
-    const rateLimitError = enforceRateLimit(request, { scope: "community-interactions:patch", max: 120 })
+    const rateLimitError = enforceApiRateLimit(request, "community-interactions:patch", 120)
     if (rateLimitError) return rateLimitError
 
-    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { supabase, user } = await requireAdminAuthenticatedUser(request)
     const body = schema.parse(await request.json())
 
     if (body.type === null) {

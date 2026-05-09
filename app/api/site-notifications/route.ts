@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { readEditUpState, writeEditUpState } from "@/lib/editup-state"
-import { requireAuthenticatedUser } from "@/lib/supabase-server"
-import { enforceRateLimit, ensureTrustedOrigin, sanitizePlainText } from "@/lib/security"
+import { enforceApiRateLimit, ensureSameOrigin, requireAdminAuthenticatedUser, sanitizePlainText } from "@/lib/api-admin"
 
 export const runtime = "nodejs"
 
@@ -19,12 +18,12 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const originError = ensureTrustedOrigin(request)
+    const originError = ensureSameOrigin(request)
     if (originError) return originError
-    const rateLimitError = enforceRateLimit(request, { scope: "site-notifications:post", max: 20 })
+    const rateLimitError = enforceApiRateLimit(request, "site-notifications:post", 20)
     if (rateLimitError) return rateLimitError
 
-    const { user } = await requireAuthenticatedUser(request)
+    const { user } = await requireAdminAuthenticatedUser(request)
     const email = user.email?.trim().toLowerCase() ?? ""
 
     if (email !== ADMIN_EMAIL) {

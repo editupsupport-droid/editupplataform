@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { quoteBuilderConfigSchema, normalizeQuoteBuilderConfig } from "@/lib/quote-builder"
-import { requireAuthenticatedUser } from "@/lib/supabase-server"
-import { enforceRateLimit, ensureTrustedOrigin } from "@/lib/security"
+import { enforceApiRateLimit, ensureSameOrigin, requireAdminAuthenticatedUser } from "@/lib/api-admin"
 
 export const runtime = "nodejs"
 
@@ -15,7 +14,7 @@ const isMissingQuoteConfigColumn = (error: unknown) =>
   "message" in error &&
   String((error as { message?: string }).message).includes("quote_form_config")
 
-const loadQuoteConfigProfile = async (supabase: Awaited<ReturnType<typeof requireAuthenticatedUser>>["supabase"], userId: string) => {
+const loadQuoteConfigProfile = async (supabase: Awaited<ReturnType<typeof requireAdminAuthenticatedUser>>["supabase"], userId: string) => {
   const withDedicatedColumn = await supabase
     .from("profiles")
     .select("quote_form_config,appearance_theme")
@@ -57,7 +56,7 @@ const loadQuoteConfigProfile = async (supabase: Awaited<ReturnType<typeof requir
 
 export async function GET(request: NextRequest) {
   try {
-    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { supabase, user } = await requireAdminAuthenticatedUser(request)
     const profile = await loadQuoteConfigProfile(supabase, user.id)
     return NextResponse.json({ config: profile.config })
   } catch (error) {
@@ -68,12 +67,12 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const originError = ensureTrustedOrigin(request)
+    const originError = ensureSameOrigin(request)
     if (originError) return originError
-    const rateLimitError = enforceRateLimit(request, { scope: "quote-builder:patch", max: 40 })
+    const rateLimitError = enforceApiRateLimit(request, "quote-builder:patch", 40)
     if (rateLimitError) return rateLimitError
 
-    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { supabase, user } = await requireAdminAuthenticatedUser(request)
     const body = z.object({ config: quoteBuilderConfigSchema }).parse(await request.json())
     const currentProfile = await loadQuoteConfigProfile(supabase, user.id)
 

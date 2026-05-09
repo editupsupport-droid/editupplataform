@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { requireAuthenticatedUser } from "@/lib/supabase-server"
-import { enforceRateLimit, ensureTrustedOrigin, sanitizeOptionalPlainText } from "@/lib/security"
+import { enforceApiRateLimit, ensureSameOrigin, requireAdminAuthenticatedUser, sanitizeOptionalPlainText } from "@/lib/api-admin"
 
 export const runtime = "nodejs"
 
@@ -35,7 +34,7 @@ const mapPreferences = (profile: Record<string, unknown>) => ({
 
 export async function GET(request: NextRequest) {
   try {
-    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { supabase, user } = await requireAdminAuthenticatedUser(request)
     const { data, error } = await supabase.from("profiles").select(preferencesColumns).eq("id", user.id).single()
 
     if (error || !data) {
@@ -51,12 +50,12 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const originError = ensureTrustedOrigin(request)
+    const originError = ensureSameOrigin(request)
     if (originError) return originError
-    const rateLimitError = enforceRateLimit(request, { scope: "preferences:patch", max: 60 })
+    const rateLimitError = enforceApiRateLimit(request, "preferences:patch", 60)
     if (rateLimitError) return rateLimitError
 
-    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { supabase, user } = await requireAdminAuthenticatedUser(request)
     const body = preferencesSchema.parse(await request.json())
     const updates: Record<string, unknown> = {}
     const hasAccountUpdate = Boolean(body.accountName || body.accountPhotoUrl !== undefined || body.accountPhotoPosition || body.pixKey !== undefined)

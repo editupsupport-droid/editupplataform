@@ -21,8 +21,7 @@ import {
   summarizeQuoteSelection,
   validateQuoteAnswers,
 } from "@/lib/quote-builder"
-import { requireAuthenticatedUser } from "@/lib/supabase-server"
-import { enforceRateLimit, ensureTrustedOrigin, sanitizePlainText } from "@/lib/security"
+import { enforceApiRateLimit, ensureSameOrigin, requireAdminAuthenticatedUser, sanitizePlainText } from "@/lib/api-admin"
 
 export const runtime = "nodejs"
 
@@ -97,7 +96,7 @@ const isMissingColumn = (error: unknown, column: string) =>
 
 export async function GET(request: NextRequest) {
   try {
-    const { user } = await requireAuthenticatedUser(request)
+    const { user } = await requireAdminAuthenticatedUser(request)
     const supabase = loadAdminClient()
     let quotesQuery: any = await supabase
       .from("quote_requests")
@@ -150,9 +149,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const originError = ensureTrustedOrigin(request)
+    const originError = ensureSameOrigin(request)
     if (originError) return originError
-    const rateLimitError = enforceRateLimit(request, { scope: "quote:post", max: 40 })
+    const rateLimitError = enforceApiRateLimit(request, "quote:post", 40)
     if (rateLimitError) return rateLimitError
 
     const rawBody = await request.json()
@@ -164,7 +163,7 @@ export async function POST(request: NextRequest) {
         ? dynamicQuoteBodySchema.parse(rawBody)
         : legacyQuoteBodySchema.parse(rawBody)
     const supabase = loadAdminClient()
-    const authenticated = isManualQuote ? await requireAuthenticatedUser(request) : null
+    const authenticated = isManualQuote ? await requireAdminAuthenticatedUser(request) : null
     const editorId = isManualQuote ? authenticated!.user.id : (body as z.infer<typeof dynamicQuoteBodySchema> | z.infer<typeof legacyQuoteBodySchema>).editorId
 
     let editorQuery = await supabase
@@ -353,12 +352,12 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const originError = ensureTrustedOrigin(request)
+    const originError = ensureSameOrigin(request)
     if (originError) return originError
-    const rateLimitError = enforceRateLimit(request, { scope: "quote:patch", max: 60 })
+    const rateLimitError = enforceApiRateLimit(request, "quote:patch", 60)
     if (rateLimitError) return rateLimitError
 
-    const { user } = await requireAuthenticatedUser(request)
+    const { user } = await requireAdminAuthenticatedUser(request)
     const body = reviewQuoteSchema.parse(await request.json())
     const supabase = loadAdminClient()
 

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { requireAuthenticatedUser } from "@/lib/supabase-server"
-import { enforceRateLimit, ensureTrustedOrigin, sanitizeOptionalPlainText, sanitizePlainText } from "@/lib/security"
+import { enforceApiRateLimit, ensureSameOrigin, requireAdminAuthenticatedUser, sanitizeOptionalPlainText, sanitizePlainText } from "@/lib/api-admin"
 
 export const runtime = "nodejs"
 
@@ -40,10 +39,10 @@ const getAccountName = (profile: { full_name?: string | null; appearance_theme?:
 
 export async function GET(request: NextRequest) {
   try {
-    const rateLimitError = enforceRateLimit(request, { scope: "community-resources:get" })
+    const rateLimitError = enforceApiRateLimit(request, "community-resources:get")
     if (rateLimitError) return rateLimitError
 
-    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { supabase, user } = await requireAdminAuthenticatedUser(request)
     const id = request.nextUrl.searchParams.get("id")?.trim() ?? ""
     const query = request.nextUrl.searchParams.get("query")?.trim() ?? ""
     const hashtag = normalizeTag(request.nextUrl.searchParams.get("hashtag") ?? "")
@@ -126,12 +125,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const originError = ensureTrustedOrigin(request)
+    const originError = ensureSameOrigin(request)
     if (originError) return originError
-    const rateLimitError = enforceRateLimit(request, { scope: "community-resources:post", max: 30 })
+    const rateLimitError = enforceApiRateLimit(request, "community-resources:post", 30)
     if (rateLimitError) return rateLimitError
 
-    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { supabase, user } = await requireAdminAuthenticatedUser(request)
     const body = resourceSchema.parse(await request.json())
     const hashtags = [...new Set(body.hashtags.map(normalizeTag).filter((tag) => allowedHashtags.includes(tag)))]
 
@@ -179,12 +178,12 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const originError = ensureTrustedOrigin(request)
+    const originError = ensureSameOrigin(request)
     if (originError) return originError
-    const rateLimitError = enforceRateLimit(request, { scope: "community-resources:delete", max: 30 })
+    const rateLimitError = enforceApiRateLimit(request, "community-resources:delete", 30)
     if (rateLimitError) return rateLimitError
 
-    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { supabase, user } = await requireAdminAuthenticatedUser(request)
     const id = request.nextUrl.searchParams.get("id")?.trim() ?? ""
     if (!id) return NextResponse.json({ error: "Recurso inválido." }, { status: 400 })
 

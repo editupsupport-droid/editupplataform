@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { requireAuthenticatedUser } from "@/lib/supabase-server"
-import { enforceRateLimit, ensureTrustedOrigin, sanitizePlainText } from "@/lib/security"
+import { enforceApiRateLimit, ensureSameOrigin, requireAdminAuthenticatedUser, sanitizePlainText } from "@/lib/api-admin"
 
 export const runtime = "nodejs"
 
@@ -22,12 +21,12 @@ const getAccountName = (profile: { full_name?: string | null; appearance_theme?:
 
 export async function POST(request: NextRequest) {
   try {
-    const originError = ensureTrustedOrigin(request)
+    const originError = ensureSameOrigin(request)
     if (originError) return originError
-    const rateLimitError = enforceRateLimit(request, { scope: "community-comments:post", max: 60 })
+    const rateLimitError = enforceApiRateLimit(request, "community-comments:post", 60)
     if (rateLimitError) return rateLimitError
 
-    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { supabase, user } = await requireAdminAuthenticatedUser(request)
     const body = schema.parse(await request.json())
     const sanitizedBody = sanitizePlainText(body.body)
 

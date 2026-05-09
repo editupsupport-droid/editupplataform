@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { requireAuthenticatedUser } from "@/lib/supabase-server"
-import { enforceRateLimit, ensureTrustedOrigin, sanitizePlainText } from "@/lib/security"
+import { enforceApiRateLimit, ensureSameOrigin, requireAdminAuthenticatedUser, sanitizePlainText } from "@/lib/api-admin"
 
 export const runtime = "nodejs"
 const transactionColumns = "id,user_id,kind,amount,description,category,client_name,transaction_date,created_at,updated_at"
@@ -31,7 +30,7 @@ const deleteSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { supabase, user } = await requireAdminAuthenticatedUser(request)
     const type = request.nextUrl.searchParams.get("type")
 
     if (type === "transactions") {
@@ -71,12 +70,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const originError = ensureTrustedOrigin(request)
+    const originError = ensureSameOrigin(request)
     if (originError) return originError
-    const rateLimitError = enforceRateLimit(request, { scope: "finance:post", max: 100 })
+    const rateLimitError = enforceApiRateLimit(request, "finance:post", 100)
     if (rateLimitError) return rateLimitError
 
-    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { supabase, user } = await requireAdminAuthenticatedUser(request)
     const body = (await request.json()) as Record<string, unknown>
     const type = String(body.type ?? "")
 
@@ -139,12 +138,12 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const originError = ensureTrustedOrigin(request)
+    const originError = ensureSameOrigin(request)
     if (originError) return originError
-    const rateLimitError = enforceRateLimit(request, { scope: "finance:delete", max: 80 })
+    const rateLimitError = enforceApiRateLimit(request, "finance:delete", 80)
     if (rateLimitError) return rateLimitError
 
-    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { supabase, user } = await requireAdminAuthenticatedUser(request)
     const { id, type } = deleteSchema.parse(await request.json())
 
     if (type === "transaction") {

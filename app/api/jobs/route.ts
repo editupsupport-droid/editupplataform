@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { requireAuthenticatedUser } from "@/lib/supabase-server"
-import { enforceRateLimit, ensureTrustedOrigin, sanitizePlainText } from "@/lib/security"
+import { enforceApiRateLimit, ensureSameOrigin, requireAdminAuthenticatedUser, sanitizePlainText } from "@/lib/api-admin"
 import { serializeJobDescription } from "@/lib/app-data"
 
 export const runtime = "nodejs"
@@ -31,7 +30,7 @@ const deleteJobSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const { supabase } = await requireAuthenticatedUser(request)
+    const { supabase } = await requireAdminAuthenticatedUser(request)
     const { data, error } = await supabase.from("job_posts").select(jobColumns).order("created_at", { ascending: false })
 
     if (error) {
@@ -47,12 +46,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const originError = ensureTrustedOrigin(request)
+    const originError = ensureSameOrigin(request)
     if (originError) return originError
-    const rateLimitError = enforceRateLimit(request, { scope: "jobs:post", max: 30 })
+    const rateLimitError = enforceApiRateLimit(request, "jobs:post", 30)
     if (rateLimitError) return rateLimitError
 
-    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { supabase, user } = await requireAdminAuthenticatedUser(request)
     const body = createJobSchema.parse((await request.json()) as Record<string, unknown>)
     const payload = {
       title: sanitizePlainText(body.title),
@@ -91,12 +90,12 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const originError = ensureTrustedOrigin(request)
+    const originError = ensureSameOrigin(request)
     if (originError) return originError
-    const rateLimitError = enforceRateLimit(request, { scope: "jobs:patch", max: 60 })
+    const rateLimitError = enforceApiRateLimit(request, "jobs:patch", 60)
     if (rateLimitError) return rateLimitError
 
-    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { supabase, user } = await requireAdminAuthenticatedUser(request)
     const { id, status } = updateJobSchema.parse((await request.json()) as { id?: string; status?: string })
 
     const { data, error } = await supabase
@@ -127,12 +126,12 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const originError = ensureTrustedOrigin(request)
+    const originError = ensureSameOrigin(request)
     if (originError) return originError
-    const rateLimitError = enforceRateLimit(request, { scope: "jobs:delete", max: 60 })
+    const rateLimitError = enforceApiRateLimit(request, "jobs:delete", 60)
     if (rateLimitError) return rateLimitError
 
-    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { supabase, user } = await requireAdminAuthenticatedUser(request)
     const { id } = deleteJobSchema.parse(await request.json())
 
     const { data, error } = await supabase
