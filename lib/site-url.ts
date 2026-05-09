@@ -12,7 +12,7 @@ export const getSiteUrl = () => {
   }
 
   if (process.env.NODE_ENV === "production") {
-    return "https://editupp.vercel.app"
+    return "https://editupplataform.vercel.app"
   }
 
   return "http://localhost:3000"
