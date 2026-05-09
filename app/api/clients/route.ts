@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { requireAuthenticatedUser } from "@/lib/supabase-server"
-import { enforceRateLimit, ensureTrustedOrigin, isSafeHttpUrl } from "@/lib/security"
 
 export const runtime = "nodejs"
 const baseClientColumns = "id,user_id,name,phone,country_code,edit_level,average_duration,frequency,drive_link,created_at,updated_at"
 const driveClientColumns = `${baseClientColumns},drive_folder_id,drive_folder_name`
+type RateBucket = { count: number; resetAt: number }
+const clientRateLimitStore = new Map<string, RateBucket>()
 
 type ClientBody = {
   id?: string
@@ -39,6 +40,59 @@ const clientDeleteSchema = z.object({
 
 const sanitizeOptionalPlainText = (value: string | null | undefined) =>
   value ? value.replace(/[\u0000-\u001f\u007f<>]/g, "").trim() : ""
+
+const normalizeOrigin = (value: string) => {
+  try {
+    return new URL(value).origin
+  } catch {
+    return ""
+  }
+}
+
+const ensureTrustedOrigin = (request: NextRequest) => {
+  const origin = request.headers.get("origin")
+  const referer = request.headers.get("referer")
+  const candidateOrigin = origin ? normalizeOrigin(origin) : referer ? normalizeOrigin(referer) : ""
+
+  if (!candidateOrigin) {
+    return NextResponse.json({ error: "Origem da requisição não pôde ser validada." }, { status: 403 })
+  }
+
+  if (candidateOrigin !== request.nextUrl.origin) {
+    return NextResponse.json({ error: "Origem da requisição não autorizada." }, { status: 403 })
+  }
+
+  return null
+}
+
+const enforceRateLimit = (request: NextRequest, scope: string, max = 80) => {
+  const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+  const key = `${scope}:${forwardedFor || request.headers.get("x-real-ip") || "unknown"}`
+  const now = Date.now()
+  const current = clientRateLimitStore.get(key)
+
+  if (!current || now > current.resetAt) {
+    clientRateLimitStore.set(key, { count: 1, resetAt: now + 15 * 60 * 1000 })
+    return null
+  }
+
+  if (current.count >= max) {
+    return NextResponse.json({ error: "Muitas requisições. Tente novamente em alguns minutos." }, { status: 429 })
+  }
+
+  current.count += 1
+  clientRateLimitStore.set(key, current)
+  return null
+}
+
+const isSafeHttpUrl = (value: string) => {
+  try {
+    const url = new URL(value)
+    return url.protocol === "https:" || (process.env.NODE_ENV !== "production" && url.protocol === "http:")
+  } catch {
+    return false
+  }
+}
 
 const clientRouteError = (stage: string, error: unknown) => {
   const message = error instanceof Error ? error.message : "Erro desconhecido."
@@ -175,7 +229,7 @@ export async function POST(request: NextRequest) {
   try {
     const originError = ensureTrustedOrigin(request)
     if (originError) return originError
-    const rateLimitError = enforceRateLimit(request, { scope: "clients:post", max: 80 })
+    const rateLimitError = enforceRateLimit(request, "clients:post", 80)
     if (rateLimitError) return rateLimitError
 
     const { supabase, user } = await requireAuthenticatedUser(request)
@@ -213,7 +267,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const originError = ensureTrustedOrigin(request)
     if (originError) return originError
-    const rateLimitError = enforceRateLimit(request, { scope: "clients:delete", max: 60 })
+    const rateLimitError = enforceRateLimit(request, "clients:delete", 60)
     if (rateLimitError) return rateLimitError
 
     const { supabase, user } = await requireAuthenticatedUser(request)
