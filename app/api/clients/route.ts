@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { requireAuthenticatedUser } from "@/lib/supabase-server"
-import { enforceRateLimit, ensureTrustedOrigin, isSafeHttpUrl, sanitizeOptionalPlainText } from "@/lib/security"
+import { enforceRateLimit, ensureTrustedOrigin, isSafeHttpUrl } from "@/lib/security"
 
 export const runtime = "nodejs"
 const baseClientColumns = "id,user_id,name,phone,country_code,edit_level,average_duration,frequency,drive_link,created_at,updated_at"
@@ -36,6 +36,30 @@ const clientBodySchema = z.object({
 const clientDeleteSchema = z.object({
   id: z.string().uuid(),
 })
+
+const sanitizeOptionalPlainText = (value: string | null | undefined) =>
+  value ? value.replace(/[\u0000-\u001f\u007f<>]/g, "").trim() : ""
+
+const clientRouteError = (stage: string, error: unknown) => {
+  const message = error instanceof Error ? error.message : "Erro desconhecido."
+
+  console.error(`[api/clients] ${stage}`, error)
+
+  if (message === "Não autenticado.") {
+    return NextResponse.json({ error: "Não autenticado.", stage }, { status: 401 })
+  }
+
+  return NextResponse.json(
+    {
+      error:
+        process.env.NODE_ENV === "production"
+          ? `Falha em /api/clients (${stage}). Verifique o schema/RLS do Supabase.`
+          : message,
+      stage,
+    },
+    { status: 500 },
+  )
+}
 
 const isMissingDriveFolderColumns = (message?: string | null) =>
   typeof message === "string" &&
@@ -128,8 +152,14 @@ const saveClientRecord = async ({
 
 export async function GET(request: NextRequest) {
   try {
-    const { supabase, user } = await requireAuthenticatedUser(request)
-    const { data, error, supportsDriveFolders } = await selectClientColumns(supabase, user.id)
+    let auth: Awaited<ReturnType<typeof requireAuthenticatedUser>>
+    try {
+      auth = await requireAuthenticatedUser(request)
+    } catch (error) {
+      return clientRouteError("auth", error)
+    }
+
+    const { data, error, supportsDriveFolders } = await selectClientColumns(auth.supabase, auth.user.id)
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 403 })
@@ -137,8 +167,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ clients: data ?? [], supportsDriveFolders })
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to load clients."
-    return NextResponse.json({ error: message }, { status: message === "Não autenticado." ? 401 : 500 })
+    return clientRouteError("select", error)
   }
 }
 
