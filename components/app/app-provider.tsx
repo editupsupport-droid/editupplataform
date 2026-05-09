@@ -780,7 +780,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = async () => {
     if (!isSupabaseConfigured) {
-      return { success: false, message: "Supabase não configurado para Google login." }
+      return {
+        success: false,
+        message:
+          "Supabase não configurado. Adicione NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY na Vercel.",
+      }
     }
 
     const supabase = getSupabaseClient()

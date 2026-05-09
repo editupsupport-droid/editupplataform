@@ -18,7 +18,9 @@ export const supabase = isSupabaseConfigured
 
 export const getSupabaseClient = () => {
   if (!supabase) {
-    throw new Error("Supabase ainda não foi configurado neste projeto.")
+    throw new Error(
+      "Supabase não configurado. Defina NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY no ambiente.",
+    )
   }
 
   return supabase
