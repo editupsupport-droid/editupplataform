@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createClient } from "@supabase/supabase-js"
-import { requireAuthenticatedUser } from "@/lib/supabase-server"
 import { createReviewExpiry, createReviewToken } from "@/lib/review-token"
 import { serializeReviewFeedback } from "@/lib/review-utils"
-import { enforceRateLimit, ensureTrustedOrigin, isSafeHttpUrl, sanitizeOptionalPlainText } from "@/lib/security"
-import { createDrivePublicPermission } from "@/lib/google-drive"
 
 export const runtime = "nodejs"
+type RateBucket = { count: number; resetAt: number }
+const approvalLinkRateLimitStore = new Map<string, RateBucket>()
 
 type ApprovalLinkBody = {
   taskId?: string
@@ -28,7 +27,7 @@ const approvalLinkSchema = z.object({
 })
 
 const getSupabaseAdmin = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseUrl = normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL)
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (!supabaseUrl || !serviceRoleKey) {
@@ -40,6 +39,91 @@ const getSupabaseAdmin = () => {
   })
 }
 
+const normalizeSupabaseUrl = (value?: string) => {
+  if (!value) return undefined
+
+  try {
+    const url = new URL(value.trim().replace(/^['"]|['"]$/g, ""))
+    return url.origin
+  } catch {
+    return value
+  }
+}
+
+const requireApprovalUser = async (request: NextRequest) => {
+  const authorization = request.headers.get("authorization")
+
+  if (!authorization?.startsWith("Bearer ")) {
+    throw new Error("Não autenticado.")
+  }
+
+  const token = authorization.slice("Bearer ".length).trim()
+  const supabase = getSupabaseAdmin()
+  const { data, error } = await supabase.auth.getUser(token)
+
+  if (error || !data.user) {
+    throw new Error("Não autenticado.")
+  }
+
+  return { supabase, user: data.user }
+}
+
+const normalizeOrigin = (value: string) => {
+  try {
+    return new URL(value).origin
+  } catch {
+    return ""
+  }
+}
+
+const ensureTrustedOrigin = (request: NextRequest) => {
+  const origin = request.headers.get("origin")
+  const referer = request.headers.get("referer")
+  const candidateOrigin = origin ? normalizeOrigin(origin) : referer ? normalizeOrigin(referer) : ""
+
+  if (!candidateOrigin) {
+    return NextResponse.json({ error: "Origem da requisição não pôde ser validada." }, { status: 403 })
+  }
+
+  if (candidateOrigin !== request.nextUrl.origin) {
+    return NextResponse.json({ error: "Origem da requisição não autorizada." }, { status: 403 })
+  }
+
+  return null
+}
+
+const enforceRateLimit = (request: NextRequest, scope: string, max = 40) => {
+  const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+  const key = `${scope}:${forwardedFor || request.headers.get("x-real-ip") || "unknown"}`
+  const now = Date.now()
+  const current = approvalLinkRateLimitStore.get(key)
+
+  if (!current || now > current.resetAt) {
+    approvalLinkRateLimitStore.set(key, { count: 1, resetAt: now + 15 * 60 * 1000 })
+    return null
+  }
+
+  if (current.count >= max) {
+    return NextResponse.json({ error: "Muitas requisições. Tente novamente em alguns minutos." }, { status: 429 })
+  }
+
+  current.count += 1
+  approvalLinkRateLimitStore.set(key, current)
+  return null
+}
+
+const isSafeHttpUrl = (value: string) => {
+  try {
+    const url = new URL(value)
+    return url.protocol === "https:" || (process.env.NODE_ENV !== "production" && url.protocol === "http:")
+  } catch {
+    return false
+  }
+}
+
+const sanitizeOptionalPlainText = (value: string | null | undefined) =>
+  value ? value.replace(/[\u0000-\u001f\u007f<>]/g, "").trim() : ""
+
 const isMissingApprovalLinksTable = (message?: string | null) =>
   typeof message === "string" &&
   (message.includes("approval_links") &&
@@ -49,10 +133,10 @@ export async function POST(request: NextRequest) {
   try {
     const originError = ensureTrustedOrigin(request)
     if (originError) return originError
-    const rateLimitError = enforceRateLimit(request, { scope: "approval-links:post", max: 40 })
+    const rateLimitError = enforceRateLimit(request, "approval-links:post", 40)
     if (rateLimitError) return rateLimitError
 
-    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { supabase, user } = await requireApprovalUser(request)
     const body = approvalLinkSchema.parse((await request.json()) as ApprovalLinkBody)
     const taskId = body.taskId.trim()
     const manualDriveLink = body.driveLink.trim()
@@ -77,6 +161,7 @@ export async function POST(request: NextRequest) {
     let sourceType = "manual"
 
     if (googleDriveFileId) {
+      const { createDrivePublicPermission } = await import("@/lib/google-drive")
       const drivePermission = await createDrivePublicPermission(user.id, googleDriveFileId)
       driveLink = drivePermission.webViewLink
       permissionId = drivePermission.permissionId
@@ -111,8 +196,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Tarefa não encontrada ou sem permissão." }, { status: 404 })
     }
 
-    const admin = getSupabaseAdmin()
-    const { error: approvalInsertError } = await admin.from("approval_links").insert({
+    const { error: approvalInsertError } = await supabase.from("approval_links").insert({
       user_id: user.id,
       task_id: taskId,
       token: reviewToken,
