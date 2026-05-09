@@ -25,7 +25,7 @@ const PLAN_CONTENT = {
   essential: [
     "Tudo do Starter",
     "Acesso completo à plataforma",
-    "CRM, Agenda, Financeiro e Drive",
+    "CRM, Produção, Financeiro e Drive",
     "Comunidade privada",
     "Suporte prioritário",
   ],

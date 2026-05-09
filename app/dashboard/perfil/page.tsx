@@ -16,6 +16,23 @@ import { copyTextToClipboard } from "@/lib/clipboard"
 
 const editTools = Object.entries(EDIT_TOOL_LABELS)
 const videoStyles = Object.entries(VIDEO_STYLE_LABELS)
+const portfolioTemplates = [
+  {
+    id: "studio-pro",
+    name: "Studio Pro",
+    description: "Para parecer agência: hero forte, cards claros e prova de stack profissional.",
+  },
+  {
+    id: "viral-creator",
+    name: "Viral Creator",
+    description: "Para Reels, Shorts e infoprodutos: foco em vídeo, ritmo e chamada direta.",
+  },
+  {
+    id: "minimal-luxury",
+    name: "Minimal Luxury",
+    description: "Para posicionamento premium: visual Apple/Tesla, limpo, silencioso e caro.",
+  },
+] as const
 
 export default function PerfilPage() {
   const [isSaving, setIsSaving] = useState(false)
@@ -40,6 +57,7 @@ export default function PerfilPage() {
       textColor: "#f8fafc",
       accentColor: "#37352F",
     },
+    portfolioTemplate: profile.portfolioTemplate ?? "studio-pro",
   })
 
   const serializeProfile = (profile: EditorProfile) =>
@@ -50,6 +68,7 @@ export default function PerfilPage() {
       editTools: [...normalizeProfile(profile).editTools].sort(),
       videoStyles: [...normalizeProfile(profile).videoStyles].sort(),
       themeColors: normalizeProfile(profile).themeColors,
+      portfolioTemplate: normalizeProfile(profile).portfolioTemplate,
     })
 
   useEffect(() => {
@@ -237,6 +256,30 @@ export default function PerfilPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="space-y-3">
+            <Label className="text-foreground">Modelo viral do portfólio</Label>
+            <div className="grid gap-3 md:grid-cols-3">
+              {portfolioTemplates.map((template) => {
+                const isActive = formData.portfolioTemplate === template.id
+
+                return (
+                  <button
+                    key={template.id}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, portfolioTemplate: template.id })}
+                    className={`rounded-2xl border p-4 text-left transition-all ${
+                      isActive
+                        ? "border-primary bg-primary/10 text-foreground shadow-sm"
+                        : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                    }`}
+                  >
+                    <span className="text-sm font-semibold">{template.name}</span>
+                    <span className="mt-2 block text-xs leading-5">{template.description}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label className="text-foreground">Links de vídeos em destaque</Label>

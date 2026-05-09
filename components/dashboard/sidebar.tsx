@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   Bell,
   BriefcaseBusiness,
@@ -19,6 +19,7 @@ import {
   Menu,
   Package,
   Settings,
+  SlidersHorizontal,
   Store,
   User,
   Video,
@@ -78,6 +79,17 @@ const resourceItems: NavItem[] = [
   { nameKey: "jobs", href: "/dashboard/vagas", icon: BriefcaseBusiness, minimumPlan: "essential" },
 ]
 
+const sidebarLayoutKey = "editup-sidebar-layout"
+type SidebarSection = "operation" | "resources"
+type SidebarLayout = Partial<Record<NavItem["nameKey"], SidebarSection>>
+const customizableItems = [...operationItems, ...resourceItems]
+
+const getItemSection = (item: NavItem, layout: SidebarLayout): SidebarSection => {
+  const configuredSection = layout[item.nameKey]
+  if (configuredSection) return configuredSection
+  return operationItems.some((operationItem) => operationItem.nameKey === item.nameKey) ? "operation" : "resources"
+}
+
 const courseItems: CourseItem[] = [
   { nameKey: "reelsCourse", href: "/dashboard/curso-reels", icon: Video, minimumPlan: "essential" },
   { nameKey: "outreach", href: "/dashboard/prospeccao", icon: Instagram, minimumPlan: "essential" },
@@ -91,8 +103,33 @@ export function DashboardSidebar() {
   const [resourcesOpen, setResourcesOpen] = useState(false)
   const [notificationCount, setNotificationCount] = useState(0)
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
+  const [sidebarDialogOpen, setSidebarDialogOpen] = useState(false)
+  const [sidebarLayout, setSidebarLayout] = useState<SidebarLayout>({})
   const { currentUser, logoutUser, isReady } = useAppSession()
   const { t } = useAppPreferences()
+
+  useEffect(() => {
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(sidebarLayoutKey) ?? "{}") as SidebarLayout
+      setSidebarLayout(parsed && typeof parsed === "object" ? parsed : {})
+    } catch {
+      setSidebarLayout({})
+    }
+  }, [])
+
+  const saveSidebarLayout = (nextLayout: SidebarLayout) => {
+    setSidebarLayout(nextLayout)
+    window.localStorage.setItem(sidebarLayoutKey, JSON.stringify(nextLayout))
+  }
+
+  const customOperationItems = useMemo(
+    () => customizableItems.filter((item) => getItemSection(item, sidebarLayout) === "operation"),
+    [sidebarLayout]
+  )
+  const customResourceItems = useMemo(
+    () => customizableItems.filter((item) => getItemSection(item, sidebarLayout) === "resources"),
+    [sidebarLayout]
+  )
 
   useEffect(() => {
     if (!currentUser) {
@@ -124,12 +161,12 @@ export function DashboardSidebar() {
     if (!courseItems.some((item) => pathname === item.href)) {
       setCoursesOpen(false)
     }
-    if (!resourceItems.some((item) => pathname === item.href)) {
+    if (!customResourceItems.some((item) => pathname === item.href)) {
       setResourcesOpen(false)
     } else {
       setResourcesOpen(true)
     }
-  }, [pathname])
+  }, [customResourceItems, pathname])
 
   const handleLogout = async () => {
     setMobileMenuOpen(false)
@@ -172,7 +209,7 @@ export function DashboardSidebar() {
 
           <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-3 py-3 lg:px-4">
             <p className="px-2 pb-1 pt-1 text-[11px] font-medium uppercase tracking-normal text-muted-foreground">Operação</p>
-            {operationItems.map((item) => {
+            {customOperationItems.map((item) => {
               const isActive = pathname === item.href
               const isLocked = isReady
                 ? (currentUser ? !canAccessDashboardPath(item.href, currentUser.plan) : true)
@@ -224,7 +261,7 @@ export function DashboardSidebar() {
                 }}
                 className={cn(
                   "premium-sidebar-item group/nav relative flex h-9 w-full items-center gap-2 rounded-md border border-transparent px-2 text-sm transition-colors duration-150",
-                  resourcesOpen || resourceItems.some((item) => pathname === item.href)
+                  resourcesOpen || customResourceItems.some((item) => pathname === item.href)
                     ? "is-active bg-secondary text-foreground"
                     : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                 )}
@@ -238,7 +275,7 @@ export function DashboardSidebar() {
 
               {resourcesOpen && (
                 <div className="space-y-1 pl-4">
-                  {resourceItems.map((item) => {
+                  {customResourceItems.map((item) => {
                     const isActive = pathname === item.href
                     const isLocked = isReady
                       ? (currentUser ? !canAccessDashboardPath(item.href, currentUser.plan) : true)
@@ -339,6 +376,20 @@ export function DashboardSidebar() {
                   size="icon"
                   onClick={() => {
                     setMobileMenuOpen(false)
+                    setSidebarDialogOpen(true)
+                  }}
+                  className="h-9 w-full shrink-0 justify-start rounded-md px-2 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  aria-label="Personalizar barra"
+                >
+                  <SlidersHorizontal className="h-4 w-4" />
+                  <span className="ml-2">Personalizar barra</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setMobileMenuOpen(false)
                     router.push("/dashboard/configuracoes")
                   }}
                   className="h-9 w-full shrink-0 justify-start rounded-md px-2 text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -378,6 +429,55 @@ export function DashboardSidebar() {
             </Button>
             <Button variant="destructive" onClick={() => void handleLogout()}>
               Sair
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={sidebarDialogOpen} onOpenChange={setSidebarDialogOpen}>
+        <DialogContent className="max-w-xl rounded-lg border-border bg-card shadow-sm">
+          <DialogHeader>
+            <DialogTitle>Personalizar barra lateral</DialogTitle>
+            <DialogDescription>
+              Escolha onde cada módulo aparece. Exemplo: mover Clientes para Recursos.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3">
+            {customizableItems.map((item) => {
+              const section = getItemSection(item, sidebarLayout)
+
+              return (
+                <div key={item.nameKey} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <item.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="truncate text-sm font-medium text-foreground">{t(item.nameKey)}</span>
+                  </div>
+                  <div className="flex rounded-md border border-border bg-card p-1">
+                    {(["operation", "resources"] as SidebarSection[]).map((targetSection) => (
+                      <button
+                        key={targetSection}
+                        type="button"
+                        onClick={() => saveSidebarLayout({ ...sidebarLayout, [item.nameKey]: targetSection })}
+                        className={cn(
+                          "rounded px-2.5 py-1 text-xs font-medium transition-colors",
+                          section === targetSection
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                        )}
+                      >
+                        {targetSection === "operation" ? "Operação" : "Recursos"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="border-border" onClick={() => saveSidebarLayout({})}>
+              Restaurar padrão
+            </Button>
+            <Button onClick={() => setSidebarDialogOpen(false)}>
+              Concluir
             </Button>
           </DialogFooter>
         </DialogContent>

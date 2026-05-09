@@ -30,7 +30,7 @@ export function FaqSupport() {
     {
       question: "Tem garantia?",
       answer:
-        "Sim. A Astherisch inclui garantia de 7 dias para você testar com mais segurança.",
+        "Sim. A EditUp inclui garantia de 7 dias para você testar com mais segurança.",
     },
   ]
 

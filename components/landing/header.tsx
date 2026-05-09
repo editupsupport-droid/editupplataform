@@ -16,7 +16,7 @@ export function Header() {
     <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/92">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 lg:px-8">
         <Link href="/" className="flex items-center">
-          <img src="/logo.jpeg" alt="Astherisch" className="h-10 w-auto object-contain sm:h-12" />
+          <img src="/logo.jpeg" alt="EditUp" className="h-10 w-auto object-contain sm:h-12" />
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex">

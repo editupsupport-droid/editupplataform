@@ -396,8 +396,8 @@ export default function NotificationsPage() {
             <PageEmptyState
               icon={<Bell className="h-7 w-7" />}
               title="Nenhuma notificação neste filtro"
-              description="Gere links de aprovação na Agenda e as respostas dos clientes vão aparecer aqui com contexto."
-              actionLabel="Abrir agenda"
+              description="Gere links de aprovação na Produção e as respostas dos clientes vão aparecer aqui com contexto."
+              actionLabel="Abrir produção"
               actionHref="/dashboard/kanban"
             />
           )}

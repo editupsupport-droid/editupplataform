@@ -3,6 +3,7 @@ export type JobStatus = "open" | "found" | "cancelled"
 
 export type ContactMethod = "phone" | "email" | "instagram"
 export type ProfileLanguage = "en" | "pt-BR" | "es"
+export type PortfolioTemplate = "studio-pro" | "viral-creator" | "minimal-luxury"
 
 export type VideoStyle = "long-form" | "short-form"
 
@@ -36,6 +37,7 @@ export interface EditorProfile {
   contactMethod: ContactMethod
   contactValue: string
   themeColors: ProfileThemeColors
+  portfolioTemplate: PortfolioTemplate
 }
 
 export interface AppUser {
@@ -74,6 +76,7 @@ export interface ParsedBannerAssets {
   photoUrl: string
   language: ProfileLanguage
   themeColors: ProfileThemeColors
+  portfolioTemplate: PortfolioTemplate
 }
 
 const defaultThemeColors = (): ProfileThemeColors => ({
@@ -199,6 +202,7 @@ export const createDefaultProfile = (name: string, email: string, existingSlugs:
   contactMethod: "email",
   contactValue: email,
   themeColors: defaultThemeColors(),
+  portfolioTemplate: "studio-pro",
 })
 
 export const parseVideoUrls = (rawValue: unknown): string[] => {
@@ -237,6 +241,7 @@ export const parseBannerAssets = (rawValue: unknown): ParsedBannerAssets => {
       photoUrl: "",
       language: "pt-BR" as ProfileLanguage,
       themeColors: defaultThemeColors(),
+      portfolioTemplate: "studio-pro",
     }
   }
 
@@ -260,6 +265,10 @@ export const parseBannerAssets = (rawValue: unknown): ParsedBannerAssets => {
           accentColor:
             typeof parsed.themeColors?.accentColor === "string" ? parsed.themeColors.accentColor : defaultThemeColors().accentColor,
         },
+        portfolioTemplate:
+          parsed.portfolioTemplate === "viral-creator" || parsed.portfolioTemplate === "minimal-luxury" || parsed.portfolioTemplate === "studio-pro"
+            ? parsed.portfolioTemplate
+            : "studio-pro",
       }
     }
   } catch {}
@@ -269,6 +278,7 @@ export const parseBannerAssets = (rawValue: unknown): ParsedBannerAssets => {
     photoUrl: "",
     language: "pt-BR" as ProfileLanguage,
     themeColors: defaultThemeColors(),
+    portfolioTemplate: "studio-pro",
   }
 }
 
@@ -276,7 +286,8 @@ export const serializeBannerAssets = (
   bannerUrl: string,
   photoUrl: string,
   language: ProfileLanguage = "pt-BR",
-  themeColors: ProfileThemeColors = defaultThemeColors()
+  themeColors: ProfileThemeColors = defaultThemeColors(),
+  portfolioTemplate: PortfolioTemplate = "studio-pro"
 ) => {
   const normalizedBanner = bannerUrl.trim()
   const normalizedPhoto = photoUrl.trim()
@@ -290,6 +301,7 @@ export const serializeBannerAssets = (
   if (
     !normalizedPhoto &&
     language === "pt-BR" &&
+    portfolioTemplate === "studio-pro" &&
     JSON.stringify(normalizedTheme) === JSON.stringify(defaultThemeColors())
   ) {
     return normalizedBanner
@@ -300,6 +312,7 @@ export const serializeBannerAssets = (
     photoUrl: normalizedPhoto,
     language,
     themeColors: normalizedTheme,
+    portfolioTemplate,
   })
 }
 

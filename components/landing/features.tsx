@@ -1,47 +1,47 @@
-import { Calculator, Package, Video, Users, BriefcaseBusiness, Clock, MonitorPlay } from "lucide-react"
+import { BriefcaseBusiness, CircleDollarSign, ClipboardCheck, FolderKanban, MessageSquareText, Package, UserRoundCheck } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 export function Features() {
   const features = [
     {
-      icon: Calculator,
-      title: "Calculadora de valores",
-      description: "Estime uma faixa mais coerente para cada projeto com base em tipo de vídeo, complexidade e prazo.",
+      icon: CircleDollarSign,
+      title: "Orçamentos configuráveis",
+      description: "Monte pacotes, adicionais, minutos de vídeo e valores próprios para cada tipo de entrega.",
       highlight: true,
     },
     {
-      icon: Package,
-      title: "Pack de edição",
-      description: "Tenha presets, transições e recursos prontos para acelerar o trabalho do dia a dia.",
+      icon: FolderKanban,
+      title: "Produção em Kanban",
+      description: "Acompanhe briefing, produção, revisão e aprovação sem perder o contexto do cliente.",
       highlight: true,
     },
     {
-      icon: Video,
-      title: "Cursos em andamento",
-      description: "Conteúdos de edição e prospecção sendo construídos para evoluir junto com a plataforma.",
-      highlight: false,
+      icon: UserRoundCheck,
+      title: "CRM 360",
+      description: "Veja histórico, faturamento, projetos, Drive vinculado e aprovações ativas de cada cliente.",
+      highlight: true,
     },
     {
-      icon: Clock,
-      title: "Aulas e atualizações",
-      description: "Aprenda com consistência e acompanhe melhorias práticas de forma recorrente.",
-      highlight: false,
-    },
-    {
-      icon: Users,
-      title: "Comunidade privada",
-      description: "Conecte-se com outros editores, troque referências e acompanhe oportunidades.",
+      icon: ClipboardCheck,
+      title: "Portal de aprovação",
+      description: "Envie links limpos para o cliente comentar, revisar versões e aprovar a entrega final.",
       highlight: false,
     },
     {
       icon: BriefcaseBusiness,
-      title: "Área de vagas",
-      description: "Veja oportunidades de edição publicadas dentro da plataforma de forma mais organizada.",
+      title: "Financeiro integrado",
+      description: "Transforme orçamento aceito em receita prevista e acompanhe entradas, despesas e saldo.",
       highlight: false,
     },
     {
-      icon: MonitorPlay,
-      title: "Página profissional",
-      description: "Crie um perfil público limpo com banner, vídeos, ferramentas e contato principal.",
+      icon: Package,
+      title: "Pack, Drive e arquivos",
+      description: "Centralize recursos, referências e pastas do Google Drive sem espalhar links pelo chat.",
+      highlight: false,
+    },
+    {
+      icon: MessageSquareText,
+      title: "Exchange e oportunidades",
+      description: "Interaja com posts, vagas e recursos da comunidade em um formato mais leve e visual.",
       highlight: false,
     },
   ]
@@ -51,11 +51,11 @@ export function Features() {
       <div className="mx-auto max-w-7xl px-4 lg:px-8">
         <div className="mx-auto mb-16 max-w-2xl text-center">
           <h2 className="mb-4 text-3xl font-bold text-foreground md:text-4xl">
-            O essencial para trabalhar com mais{" "}
+            O essencial para rodar sua operação com{" "}
             <span className="text-primary">clareza</span>
           </h2>
           <p className="text-muted-foreground">
-            Recursos pensados para o editor que quer crescer com mais estrutura sem perder simplicidade.
+            Recursos escolhidos para deixar a EditUp com cara de produto completo, não de MVP improvisado.
           </p>
         </div>
 

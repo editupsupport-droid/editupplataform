@@ -27,6 +27,7 @@ type ProfilePayload = {
     textColor?: string
     accentColor?: string
   }
+  portfolioTemplate?: "studio-pro" | "viral-creator" | "minimal-luxury"
   monthlyRevenueGoal?: number
   appLanguage?: "pt" | "en" | "es"
   appearanceTheme?: unknown
@@ -54,6 +55,7 @@ const profileSchema = z.object({
       accentColor: z.string().trim().regex(/^#([0-9a-fA-F]{6})$/).optional(),
     })
     .optional(),
+  portfolioTemplate: z.enum(["studio-pro", "viral-creator", "minimal-luxury"]).optional(),
   monthlyRevenueGoal: z.number().min(0).max(999999999).optional(),
   appLanguage: z.enum(["pt", "en", "es"]).optional(),
   appearanceTheme: z.record(z.unknown()).optional(),
@@ -79,7 +81,8 @@ const serializeBannerAssets = (
   bannerUrl = "",
   photoUrl = "",
   language: ProfilePayload["language"] = "pt-BR",
-  themeColors: ProfilePayload["themeColors"] = defaultThemeColors
+  themeColors: ProfilePayload["themeColors"] = defaultThemeColors,
+  portfolioTemplate: ProfilePayload["portfolioTemplate"] = "studio-pro"
 ) => {
   const normalizedTheme = {
     pageBackground: themeColors?.pageBackground ?? defaultThemeColors.pageBackground,
@@ -88,7 +91,7 @@ const serializeBannerAssets = (
     accentColor: themeColors?.accentColor ?? defaultThemeColors.accentColor,
   }
 
-  if (!photoUrl.trim() && language === "pt-BR" && JSON.stringify(normalizedTheme) === JSON.stringify(defaultThemeColors)) {
+  if (!photoUrl.trim() && language === "pt-BR" && portfolioTemplate === "studio-pro" && JSON.stringify(normalizedTheme) === JSON.stringify(defaultThemeColors)) {
     return bannerUrl.trim()
   }
 
@@ -97,6 +100,7 @@ const serializeBannerAssets = (
     photoUrl: photoUrl.trim(),
     language,
     themeColors: normalizedTheme,
+    portfolioTemplate,
   })
 }
 
@@ -130,7 +134,7 @@ export async function POST(request: NextRequest) {
         bio: sanitizeOptionalPlainText(body.bio),
         location: sanitizeOptionalPlainText(body.location),
         slug: body.slug?.trim() ?? "",
-        banner_url: serializeBannerAssets(body.bannerUrl, body.photoUrl, body.language, body.themeColors),
+        banner_url: serializeBannerAssets(body.bannerUrl, body.photoUrl, body.language, body.themeColors, body.portfolioTemplate),
         video_url: serializeVideoUrls(body.videoUrls),
         edit_tools: Array.isArray(body.editTools) ? body.editTools.map(sanitizeOptionalPlainText).filter(Boolean) : [],
         video_styles: Array.isArray(body.videoStyles) ? body.videoStyles.map(sanitizeOptionalPlainText).filter(Boolean) : [],

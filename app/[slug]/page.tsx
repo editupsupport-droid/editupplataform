@@ -15,6 +15,8 @@ import {
   PROFILE_LANGUAGE_LABELS,
   VIDEO_STYLE_LABELS,
 } from "@/lib/app-data"
+import type { PortfolioTemplate } from "@/lib/app-data"
+import { getExternalVideoEmbedUrl } from "@/lib/review-utils"
 
 interface PublicProfileData {
   full_name: string
@@ -31,6 +33,9 @@ interface PublicProfileData {
 
 const getEmbedUrl = (videoUrl: string) => {
   if (!videoUrl) return null
+
+  const externalEmbedUrl = getExternalVideoEmbedUrl(videoUrl)
+  if (externalEmbedUrl) return externalEmbedUrl
 
   const youtubeMatch = videoUrl.match(
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([A-Za-z0-9_-]{6,})/
@@ -123,6 +128,9 @@ export default function PublicProfilePage() {
     contactValue: profile.contact_value,
   }
   const contactHref = getContactHref(normalizedProfile.contactMethod, normalizedProfile.contactValue)
+  const template = normalizedProfile.portfolioTemplate as PortfolioTemplate
+  const isViral = template === "viral-creator"
+  const isMinimal = template === "minimal-luxury"
   const pageStyle = {
     backgroundColor: normalizedProfile.themeColors.pageBackground,
     color: normalizedProfile.themeColors.textColor,
@@ -133,40 +141,68 @@ export default function PublicProfilePage() {
   }
 
   return (
-    <div className="min-h-screen py-10" style={pageStyle}>
-      <div className="mx-auto max-w-5xl px-4 lg:px-8">
+    <div className={`min-h-screen ${isMinimal ? "py-14" : "py-10"}`} style={pageStyle}>
+      <div className={`mx-auto px-4 lg:px-8 ${isMinimal ? "max-w-4xl" : isViral ? "max-w-6xl" : "max-w-5xl"}`}>
         <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm hover:opacity-80" style={{ color: `${normalizedProfile.themeColors.textColor}B3` }}>
           <ArrowLeft className="h-4 w-4" />
           Voltar
         </Link>
 
-        <section className="overflow-hidden rounded-3xl border" style={cardStyle}>
+        <section className={`overflow-hidden border ${isMinimal ? "rounded-[2rem]" : "rounded-3xl"}`} style={cardStyle}>
           <div
-            className="min-h-52 border-b bg-secondary bg-cover bg-center"
+            className={`${isViral ? "min-h-[24rem]" : "min-h-52"} border-b bg-secondary bg-cover bg-center`}
             style={{
               borderColor: `${normalizedProfile.themeColors.accentColor}40`,
               ...(normalizedProfile.bannerUrl ? { backgroundImage: `linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.75)), url(${normalizedProfile.bannerUrl})` } : {}),
             }}
           >
-            <div className="flex min-h-52 items-end px-6 py-8 lg:px-10">
-              <div className="space-y-3">
+            <div className={`flex ${isViral ? "min-h-[24rem] items-center" : "min-h-52 items-end"} px-6 py-8 lg:px-10`}>
+              <div className={`space-y-3 ${isViral ? "max-w-2xl" : ""}`}>
                 <div
-                  className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-cover bg-center text-2xl font-bold text-white"
+                  className={`flex items-center justify-center overflow-hidden bg-cover bg-center font-bold text-white ${isViral ? "h-24 w-24 rounded-3xl text-3xl" : "h-20 w-20 rounded-full text-2xl"}`}
                   style={normalizedProfile.photoUrl ? { backgroundImage: `url(${normalizedProfile.photoUrl})`, backgroundColor: normalizedProfile.themeColors.accentColor } : { backgroundColor: normalizedProfile.themeColors.accentColor }}
                 >
                   {!normalizedProfile.photoUrl && normalizedProfile.fullName.slice(0, 1).toUpperCase()}
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold lg:text-4xl" style={{ color: normalizedProfile.themeColors.textColor }}>{normalizedProfile.fullName}</h1>
-                  <p className="text-lg" style={{ color: `${normalizedProfile.themeColors.textColor}CC` }}>{normalizedProfile.professionalTitle}</p>
+                  <h1 className={`${isViral ? "text-5xl lg:text-7xl" : isMinimal ? "text-4xl lg:text-5xl" : "text-3xl lg:text-4xl"} font-bold tracking-tight`} style={{ color: normalizedProfile.themeColors.textColor }}>{normalizedProfile.fullName}</h1>
+                  <p className={`${isViral ? "mt-3 text-2xl" : "text-lg"}`} style={{ color: `${normalizedProfile.themeColors.textColor}CC` }}>{normalizedProfile.professionalTitle}</p>
                   {normalizedProfile.location && <p className="mt-1 text-sm" style={{ color: `${normalizedProfile.themeColors.textColor}B3` }}>{normalizedProfile.location}</p>}
                   <p className="mt-1 text-sm" style={{ color: `${normalizedProfile.themeColors.textColor}B3` }}>{PROFILE_LANGUAGE_LABELS[normalizedProfile.language]}</p>
+                  {isViral && (
+                    <Link href={contactHref} target="_blank" className="mt-6 inline-flex">
+                      <Button className="rounded-full px-6 text-white hover:opacity-90" style={{ backgroundColor: normalizedProfile.themeColors.accentColor }}>
+                        Quero um vídeo nesse nível
+                      </Button>
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="grid gap-6 p-6 lg:grid-cols-[1.2fr,0.8fr] lg:p-10">
+          {isViral && normalizedProfile.videoUrls.some(Boolean) && (
+            <div className="border-b p-6 lg:p-10" style={{ borderColor: `${normalizedProfile.themeColors.accentColor}30` }}>
+              <div className="grid gap-4 md:grid-cols-3">
+                {normalizedProfile.videoUrls.filter(Boolean).slice(0, 3).map((videoUrl, index) => {
+                  const embedUrl = getEmbedUrl(videoUrl)
+                  return (
+                    <div key={`${videoUrl}-hero-${index}`} className="aspect-video overflow-hidden rounded-3xl border" style={{ borderColor: `${normalizedProfile.themeColors.accentColor}30` }}>
+                      {embedUrl ? (
+                        <iframe src={embedUrl} title={`Destaque ${index + 1}`} className="h-full w-full" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen />
+                      ) : (
+                        <Link href={videoUrl} target="_blank" className="flex h-full items-center justify-center text-sm" style={{ color: normalizedProfile.themeColors.accentColor }}>
+                          Abrir vídeo {index + 1}
+                        </Link>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className={`grid gap-6 p-6 lg:p-10 ${isMinimal ? "lg:grid-cols-1" : "lg:grid-cols-[1.2fr,0.8fr]"}`}>
             <div className="space-y-6">
               <Card className="border" style={cardStyle}>
                 <CardContent className="space-y-4 p-6">

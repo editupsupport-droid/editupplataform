@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useEffect, useMemo, useState, type ComponentProps } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowUpRight, BriefcaseBusiness, CalendarDays, CheckCircle2, Clock3, FileText, FolderOpen, MessageCircle, RotateCcw, Wallet } from "lucide-react"
+import { ArrowUpRight, BriefcaseBusiness, CalendarDays, CheckCircle2, RotateCcw, Wallet } from "lucide-react"
 import {
   Bar,
   BarChart,
@@ -18,7 +18,6 @@ import {
 } from "recharts"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -251,33 +250,6 @@ export default function DashboardPage() {
     [tasks]
   )
 
-  const dueSoonTasks = useMemo(
-    () =>
-      tasks
-        .filter((task) => task.colunaId !== "concluido" && task.prazo)
-        .filter((task) => {
-          const hoursLeft = (new Date(task.prazo).getTime() - Date.now()) / 36e5
-          return hoursLeft >= 0 && hoursLeft <= 72
-        })
-        .sort((a, b) => new Date(a.prazo).getTime() - new Date(b.prazo).getTime()),
-    [tasks]
-  )
-  const pendingApprovalTasks = useMemo(
-    () => tasks.filter((task) => task.linkAprovacao && task.statusCliente === "pendente" && task.colunaId !== "concluido"),
-    [tasks]
-  )
-  const clientsWithoutDrive = useMemo(
-    () => clients.filter((client) => !client.linkDrive && !client.driveFolderId),
-    [clients]
-  )
-  const expectedRevenue = useMemo(
-    () =>
-      tasks
-        .filter((task) => task.colunaId !== "concluido")
-        .reduce((total, task) => total + parseProjectValue(task), 0),
-    [tasks]
-  )
-
   const kpis = [
     {
       title: "Faturamento Real",
@@ -309,41 +281,6 @@ export default function DashboardPage() {
     },
   ]
 
-  const actionCards = [
-    {
-      title: "Prazos nas próximas 72h",
-      value: String(dueSoonTasks.length),
-      helper: dueSoonTasks[0] ? `${dueSoonTasks[0].titulo} vence primeiro` : "Nenhum prazo crítico agora",
-      href: dueSoonTasks[0] ? `/dashboard/kanban?taskId=${encodeURIComponent(dueSoonTasks[0].id)}` : "/dashboard/kanban",
-      action: dueSoonTasks[0] ? "Abrir entrega" : "Abrir produção",
-      icon: Clock3,
-    },
-    {
-      title: "Aprovações aguardando cliente",
-      value: String(pendingApprovalTasks.length),
-      helper: pendingApprovalTasks[0] ? pendingApprovalTasks[0].clienteNome : "Nenhum link aguardando resposta",
-      href: pendingApprovalTasks[0] ? `/dashboard/kanban?taskId=${encodeURIComponent(pendingApprovalTasks[0].id)}` : "/dashboard/notificacoes",
-      action: pendingApprovalTasks[0] ? "Ver link" : "Ver notificações",
-      icon: MessageCircle,
-    },
-    {
-      title: "Clientes sem Drive",
-      value: String(clientsWithoutDrive.length),
-      helper: clientsWithoutDrive[0] ? `${clientsWithoutDrive[0].nome} ainda não tem pasta` : "Todos os clientes estão organizados",
-      href: clientsWithoutDrive[0] ? `/dashboard/clientes/${clientsWithoutDrive[0].id}` : "/dashboard/clientes",
-      action: clientsWithoutDrive[0] ? "Vincular pasta" : "Abrir clientes",
-      icon: FolderOpen,
-    },
-    {
-      title: "Receita prevista em produção",
-      value: formatCurrency(expectedRevenue),
-      helper: "Somatório dos projetos ainda abertos",
-      href: "/dashboard/financeiro",
-      action: "Abrir receita",
-      icon: FileText,
-    },
-  ]
-
   if (!currentUser) return null
 
   const openTask = (taskId: string) => {
@@ -372,29 +309,6 @@ export default function DashboardPage() {
         </DashboardCard>
       ) : (
         <>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {actionCards.map((item) => (
-              <DashboardCard key={item.title} className="bg-card">
-                <CardContent className="flex h-full flex-col justify-between gap-4 p-4">
-                  <div>
-                    <div className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                      <item.icon className="h-4 w-4" />
-                      {item.title}
-                    </div>
-                    <p className="text-2xl font-semibold text-foreground">{item.value}</p>
-                    <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{item.helper}</p>
-                  </div>
-                  <Button asChild variant="outline" size="sm" className="justify-between">
-                    <Link href={item.href}>
-                      {item.action}
-                      <ArrowUpRight className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                </CardContent>
-              </DashboardCard>
-            ))}
-          </div>
-
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
             {kpis.map((kpi) => (
               <DashboardCard key={kpi.title}>

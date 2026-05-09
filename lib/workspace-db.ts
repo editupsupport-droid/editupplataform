@@ -25,7 +25,7 @@ import {
   createTimelineEvent,
 } from "@/lib/workflow-insights"
 
-const WORKSPACE_SYNC_EVENT = "astherisch-workspace-sync"
+const WORKSPACE_SYNC_EVENT = "editup-workspace-sync"
 const workspaceClientsCache = new Map<string, WorkspaceClient[]>()
 const workspaceTasksCache = new Map<string, WorkspaceTask[]>()
 const financeTransactionsCache = new Map<string, FinanceTransaction[]>()

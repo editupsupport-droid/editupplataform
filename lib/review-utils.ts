@@ -112,6 +112,7 @@ export const parseGoogleDriveFileId = (url: string) => {
 
   const patterns = [
     /\/file\/d\/([a-zA-Z0-9_-]+)/,
+    /\/open\?id=([a-zA-Z0-9_-]+)/,
     /[?&]id=([a-zA-Z0-9_-]+)/,
     /\/uc\?.*id=([a-zA-Z0-9_-]+)/,
   ]
@@ -127,6 +128,27 @@ export const parseGoogleDriveFileId = (url: string) => {
 export const getGoogleDriveEmbedUrl = (url: string) => {
   const fileId = parseGoogleDriveFileId(url)
   return fileId ? `https://drive.google.com/file/d/${fileId}/preview` : null
+}
+
+export const getExternalVideoEmbedUrl = (url: string) => {
+  if (!url) return null
+
+  const driveEmbedUrl = getGoogleDriveEmbedUrl(url)
+  if (driveEmbedUrl) return driveEmbedUrl
+
+  const youtubeMatch = url.match(
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([A-Za-z0-9_-]{6,})/
+  )
+  if (youtubeMatch?.[1]) {
+    return `https://www.youtube.com/embed/${youtubeMatch[1]}`
+  }
+
+  const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?(\d+)/)
+  if (vimeoMatch?.[1]) {
+    return `https://player.vimeo.com/video/${vimeoMatch[1]}`
+  }
+
+  return null
 }
 
 export const getGoogleDriveVideoUrl = (url: string) => {

@@ -13,6 +13,7 @@ import { useAppPreferences } from "@/components/app/preferences-provider"
 import { WorkspaceTask } from "@/lib/workspace-store"
 import {
   formatTimestamp,
+  getExternalVideoEmbedUrl,
   getGoogleDriveEmbedUrl,
   getGoogleDriveVideoUrl,
   parseReviewFeedback,
@@ -105,11 +106,11 @@ export default function ApprovalPage() {
 
   const directVideoUrl = useMemo(() => {
     const rawLink = task?.linkDrive ?? ""
-    if (getGoogleDriveEmbedUrl(rawLink)) return ""
+    if (getExternalVideoEmbedUrl(rawLink)) return ""
     return getGoogleDriveVideoUrl(rawLink) ?? rawLink
   }, [task?.linkDrive])
   const embedVideoUrl = useMemo(
-    () => getGoogleDriveEmbedUrl(task?.linkDrive ?? "") ?? "",
+    () => getExternalVideoEmbedUrl(task?.linkDrive ?? "") ?? "",
     [task?.linkDrive]
   )
 

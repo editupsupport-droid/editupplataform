@@ -4,20 +4,20 @@ export function Testimonials() {
   const testimonials = [
     {
       name: "Lucas Oliveira",
-      role: "Freelance Editor",
-      content: "The pricing calculator changed how I charge. I finally have confidence in my rates.",
+      role: "Editor freelancer",
+      content: "A calculadora mudou a forma como eu monto proposta. Parei de chutar valor e comecei a apresentar escopo.",
       rating: 5,
     },
     {
       name: "Mariana Costa",
-      role: "Content Creator",
-      content: "The preset pack is fantastic. My editing speed doubled and the final quality improved a lot.",
+      role: "Criadora de conteúdo",
+      content: "O fluxo de cliente, produção e aprovação deixou meu trabalho com cara de agência, mesmo sendo solo.",
       rating: 5,
     },
     {
       name: "Rafael Santos",
-      role: "Reels Editor",
-      content: "The Instagram outreach course was a turning point. I landed 15 recurring clients in two months.",
+      role: "Editor de Reels",
+      content: "Consigo acompanhar orçamentos, links e entregas sem espalhar tudo em planilha, WhatsApp e notas soltas.",
       rating: 5,
     },
   ]
@@ -27,11 +27,11 @@ export function Testimonials() {
       <div className="mx-auto max-w-7xl px-4 lg:px-8">
         <div className="mx-auto mb-16 max-w-2xl text-center">
           <h2 className="mb-4 text-3xl font-bold text-foreground md:text-4xl">
-            What our{" "}
-            <span className="text-primary">editors</span> say
+            Feito para editores que querem{" "}
+            <span className="text-primary">operar melhor</span>
           </h2>
           <p className="text-muted-foreground">
-            See how Astherisch is helping editors level up their career and positioning.
+            A EditUp organiza a parte invisível do trabalho: proposta, cliente, produção, aprovação e recebimento.
           </p>
         </div>
 

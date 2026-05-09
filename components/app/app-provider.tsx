@@ -162,6 +162,7 @@ const mapProfileToAppUser = (profile: Record<string, unknown>): AppUser => {
       contactMethod: (profile.contact_method as EditorProfile["contactMethod"]) ?? "email",
       contactValue: String(profile.contact_value ?? profile.email ?? ""),
       themeColors: bannerAssets.themeColors,
+      portfolioTemplate: bannerAssets.portfolioTemplate,
     },
   }
 }
@@ -310,7 +311,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         existingAssets.bannerUrl,
         avatarUrl,
         existingAssets.language,
-        existingAssets.themeColors
+        existingAssets.themeColors,
+        existingAssets.portfolioTemplate
       )
     }
 
@@ -863,6 +865,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         videoStyles: [...new Set(profile.videoStyles ?? [])],
         contactValue: profile.contactValue.trim(),
         themeColors: profile.themeColors,
+        portfolioTemplate: profile.portfolioTemplate,
       }
 
       const existingSlugs = users.filter((user) => user.id !== currentUser.id).map((user) => user.profile.slug)
@@ -895,6 +898,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             contactMethod: normalizedProfile.contactMethod,
             contactValue: normalizedProfile.contactValue,
             themeColors: normalizedProfile.themeColors,
+            portfolioTemplate: normalizedProfile.portfolioTemplate,
           }),
         })
       } catch (error) {

@@ -19,7 +19,7 @@ const MINIMIZED_KEY = "editup-essential-onboarding-minimized"
 
 const baseTasks = [
   { id: "client", title: "Criar Cliente", href: "/dashboard/clientes" },
-  { id: "schedule", title: "Criar Agenda", href: "/dashboard/kanban" },
+  { id: "schedule", title: "Criar Produção", href: "/dashboard/kanban" },
   { id: "jobs", title: "Ver Vagas", href: "/dashboard/vagas" },
   { id: "profile", title: "Editar Página Profissional", href: "/dashboard/perfil" },
   { id: "pack", title: "Ver Pack de Edição", href: "/dashboard/pack" },

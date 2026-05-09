@@ -15,10 +15,10 @@ const plans = [
     name: "Free",
     price: "R$ 0",
     period: "",
-    description: "Plano padrão para toda conta nova, com foco na calculadora de valores.",
+    description: "Plano padrão para toda conta nova, com foco na calculadora de propostas.",
     features: [
       "Toda conta nova começa no Free",
-      "Acesso à calculadora de valores",
+      "Acesso à calculadora de propostas",
       "Upgrade a qualquer momento",
     ],
     current: false,
@@ -30,9 +30,11 @@ const plans = [
     period: "pagamento único",
     description: "Ideal para quem quer começar com o essencial e ter acesso prático sem complexidade.",
     features: [
-      "Pricing calculator",
+      "Calculadora de propostas",
       "Pack completo de edição",
-      "Acesso somente a esses dois recursos",
+      "Página profissional",
+      "Área de oportunidades",
+      "Acesso aos recursos essenciais",
       "Entrada simples e direta",
       "Acesso vitalício",
     ],
@@ -46,12 +48,11 @@ const plans = [
     description: "Para quem quer acesso total à plataforma, mais estrutura e mais recursos no dia a dia.",
     features: [
       "Tudo do Starter",
-      "Acesso total à plataforma",
-      "Private community",
+      "CRM, Produção, Orçamentos e Financeiro",
+      "Links de aprovação para clientes",
+      "Integração com Google Drive",
+      "Comunidade privada",
       "Alertas de novas vagas",
-      "Aulas semanais",
-      "Cursos e conteúdos completos",
-      "Acesso total ao Creative Cloud mensal",
       "Suporte prioritário",
     ],
     popular: true,
@@ -99,7 +100,7 @@ export default function PlanosPage() {
     <div className="mx-auto max-w-4xl space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground md:text-3xl">Plans and billing</h1>
+        <h1 className="text-2xl font-bold text-foreground md:text-3xl">Planos e cobrança</h1>
         <p className="mt-1 text-muted-foreground">
           Escolha o plano certo para o seu momento como editor
         </p>
@@ -118,8 +119,8 @@ export default function PlanosPage() {
               {currentUser.plan === "free"
                 ? "Sua conta começou automaticamente no Free com acesso à calculadora."
                 : currentUser.plan === "starter"
-                  ? "Você já tem acesso à calculadora de valores e ao pack de edição."
-                  : "Você já tem acesso total à plataforma, à comunidade privada e ao Creative Cloud mensal."}
+                  ? "Você já tem acesso à calculadora de propostas, ao pack de edição e aos recursos essenciais."
+                  : "Você já tem acesso total à plataforma, comunidade privada, aprovações, CRM, produção e financeiro."}
             </p>
           </div>
         </CardContent>

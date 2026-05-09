@@ -388,13 +388,14 @@ export default function AgendaPage() {
           googleDriveFileName: selectedDriveVideo?.name,
         }),
       })
-      const approvalPayload = (await approvalResponse.json().catch(() => ({}))) as { error?: string; approvalLink?: string }
+      const approvalPayload = (await approvalResponse.json().catch(() => ({}))) as { error?: string; approvalLink?: string; driveLink?: string }
       if (!approvalResponse.ok || !approvalPayload.approvalLink) {
         throw new Error(approvalPayload.error ?? "Não foi possível gerar o link de aprovação.")
       }
+      const finalDriveLink = approvalPayload.driveLink || selectedDriveVideo?.url || linkDriveConclusao.trim()
 
       const updatedTask = await updateWorkspaceTask(currentUser.id, tarefaSelecionada.id, {
-        linkDrive: linkDriveConclusao.trim(),
+        linkDrive: finalDriveLink,
         linkAprovacao: approvalPayload.approvalLink,
         colunaId: "waiting-response",
         statusCliente: "pendente",

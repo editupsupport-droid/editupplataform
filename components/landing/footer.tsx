@@ -8,10 +8,10 @@ export function Footer() {
         <div className="grid gap-8 md:grid-cols-4">
           <div className="md:col-span-2">
             <Link href="/" className="flex items-center">
-              <img src="/logo.jpeg" alt="Astherisch" className="h-12 w-auto object-contain" />
+              <img src="/logo.jpeg" alt="EditUp" className="h-12 w-auto object-contain" />
             </Link>
             <p className="mt-4 max-w-xs text-sm text-muted-foreground">
-              A complete platform for video editors who want to grow professionally and increase their income.
+              Um workspace completo para editores que querem vender, produzir e entregar com mais controle.
             </p>
             <div className="mt-6 flex gap-4">
               <a href="#" className="text-muted-foreground transition-colors hover:text-primary">
@@ -31,17 +31,17 @@ export function Footer() {
             <ul className="space-y-3 text-sm">
               <li>
                 <Link href="#features" className="text-muted-foreground transition-colors hover:text-foreground">
-                  Features
+                  Recursos
                 </Link>
               </li>
               <li>
                 <Link href="#pricing" className="text-muted-foreground transition-colors hover:text-foreground">
-                  Pricing
+                  Planos
                 </Link>
               </li>
               <li>
                 <Link href="#testimonials" className="text-muted-foreground transition-colors hover:text-foreground">
-                  Testimonials
+                  Depoimentos
                 </Link>
               </li>
             </ul>
@@ -52,17 +52,17 @@ export function Footer() {
             <ul className="space-y-3 text-sm">
               <li>
                 <Link href="#" className="text-muted-foreground transition-colors hover:text-foreground">
-                  Terms of Use
+                  Termos de uso
                 </Link>
               </li>
               <li>
                 <Link href="#" className="text-muted-foreground transition-colors hover:text-foreground">
-                  Privacy Policy
+                  Política de privacidade
                 </Link>
               </li>
               <li>
                 <a href="mailto:editupsupport@gmail.com" className="text-muted-foreground transition-colors hover:text-foreground">
-                  Contact
+                  Contato
                 </a>
               </li>
             </ul>
@@ -70,7 +70,7 @@ export function Footer() {
         </div>
 
         <div className="mt-12 border-t border-border/50 pt-8 text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} Astherisch. Todos os direitos reservados.
+          © {new Date().getFullYear()} EditUp. Todos os direitos reservados.
         </div>
       </div>
     </footer>

@@ -79,9 +79,11 @@ export interface WorkspaceTask {
   timeline?: WorkspaceTimelineEvent[]
 }
 
-const CLIENTS_KEY = "astherisch-clients"
-const TASKS_KEY = "astherisch-tasks"
-const STORAGE_EVENT = "astherisch-workspace-updated"
+const CLIENTS_KEY = "editup-clients"
+const TASKS_KEY = "editup-tasks"
+const LEGACY_CLIENTS_KEY = "astherisch-clients"
+const LEGACY_TASKS_KEY = "astherisch-tasks"
+const STORAGE_EVENT = "editup-workspace-updated"
 const CLIENT_PHOTOS_KEY = "editup-client-photos"
 const CLIENT_META_KEY = "editup-client-metadata"
 const TASK_META_KEY = "editup-task-metadata"
@@ -99,16 +101,29 @@ const readStorage = <T,>(key: string, fallback: T): T => {
   }
 }
 
+const readStorageWithLegacy = <T,>(key: string, legacyKey: string, fallback: T): T => {
+  const currentValue = readStorage<T | null>(key, null)
+  if (currentValue) return currentValue
+
+  const legacyValue = readStorage<T | null>(legacyKey, null)
+  if (legacyValue) {
+    writeStorage(key, legacyValue)
+    return legacyValue
+  }
+
+  return fallback
+}
+
 const writeStorage = <T,>(key: string, value: T) => {
   if (!isBrowser()) return
   window.localStorage.setItem(key, JSON.stringify(value))
   window.dispatchEvent(new CustomEvent(STORAGE_EVENT, { detail: key }))
 }
 
-export const getWorkspaceClients = () => readStorage<WorkspaceClient[]>(CLIENTS_KEY, [])
+export const getWorkspaceClients = () => readStorageWithLegacy<WorkspaceClient[]>(CLIENTS_KEY, LEGACY_CLIENTS_KEY, [])
 export const saveWorkspaceClients = (clients: WorkspaceClient[]) => writeStorage(CLIENTS_KEY, clients)
 
-export const getWorkspaceTasks = () => readStorage<WorkspaceTask[]>(TASKS_KEY, [])
+export const getWorkspaceTasks = () => readStorageWithLegacy<WorkspaceTask[]>(TASKS_KEY, LEGACY_TASKS_KEY, [])
 export const saveWorkspaceTasks = (tasks: WorkspaceTask[]) => writeStorage(TASKS_KEY, tasks)
 
 type ClientPhotosMap = Record<string, string>

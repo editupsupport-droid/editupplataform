@@ -127,12 +127,12 @@ export async function POST(request: NextRequest) {
 
     if (approvalInsertError) {
       if (isMissingApprovalLinksTable(approvalInsertError.message)) {
-        return NextResponse.json({ approvalLink: data.approval_link })
+        return NextResponse.json({ approvalLink: data.approval_link, driveLink })
       }
       return NextResponse.json({ error: "Não foi possível registrar o link de aprovação." }, { status: 400 })
     }
 
-    return NextResponse.json({ approvalLink: data.approval_link })
+    return NextResponse.json({ approvalLink: data.approval_link, driveLink })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0]?.message ?? "Não foi possível gerar o link de aprovação." }, { status: 400 })

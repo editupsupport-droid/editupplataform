@@ -412,7 +412,7 @@ export default function ClientesPage() {
       {isLoading ? (
         <PageLoadingState title="Carregando clientes" description="Estamos trazendo sua lista para você continuar o fluxo sem perder contexto." />
       ) : clientes.length === 0 ? (
-        <PageEmptyState icon={<User className="h-7 w-7" />} title="Ainda não há clientes" description="Adicione o primeiro cliente e vincule cada nova entrega a ele na Agenda." actionLabel="Adicionar cliente" onAction={() => setDialogOpen(true)} />
+        <PageEmptyState icon={<User className="h-7 w-7" />} title="Ainda não há clientes" description="Adicione o primeiro cliente e vincule cada nova entrega a ele na Produção." actionLabel="Adicionar cliente" onAction={() => setDialogOpen(true)} />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {clientes.map((cliente) => {

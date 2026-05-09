@@ -16,7 +16,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: 'EditUp - Plataforma para editores de vídeo',
-  description: 'Uma plataforma completa para editores de vídeo com calculadora de valores, packs de edição, portfólio e recursos exclusivos.',
+  description: 'Workspace para editores de vídeo com orçamentos, CRM, produção, financeiro, Drive e aprovações profissionais.',
   metadataBase: new URL(getSiteUrl()),
   icons: {
     icon: '/favicon.svg',
