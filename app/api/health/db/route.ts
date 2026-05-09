@@ -30,6 +30,13 @@ const tables = [
   "job_posts",
 ] as const
 
+const columnChecks = [
+  { table: "profiles", columns: "id,monthly_revenue_goal,app_language,appearance_theme,account_name,account_photo_url,quote_form_config" },
+  { table: "board_cards", columns: "id,client_id,client_name,due_date,drive_link,approval_link,approved,client_feedback,client_status,notification_read" },
+  { table: "clients", columns: "id,drive_folder_id,drive_folder_name" },
+  { table: "quote_requests", columns: "id,status,form_answers,pricing_breakdown,calculated_price,manual_adjustment,editor_message,finalized_at" },
+] as const
+
 export async function GET() {
   const supabaseUrl = normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL)
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -64,8 +71,22 @@ export async function GET() {
     }),
   )
 
+  const columns = await Promise.all(
+    columnChecks.map(async (check) => {
+      const { error } = await supabase.from(check.table).select(check.columns, { head: true }).limit(1)
+
+      return {
+        table: check.table,
+        ok: !error,
+        columns: check.columns.split(","),
+        error: error?.message ?? null,
+      }
+    }),
+  )
+
   return NextResponse.json({
-    ok: checks.every((check) => check.ok),
+    ok: checks.every((check) => check.ok) && columns.every((check) => check.ok),
     tables: checks,
+    columns,
   })
 }
