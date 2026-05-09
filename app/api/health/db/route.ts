@@ -31,10 +31,34 @@ const tables = [
 ] as const
 
 const columnChecks = [
-  { table: "profiles", columns: "id,monthly_revenue_goal,app_language,appearance_theme,account_name,account_photo_url,quote_form_config" },
-  { table: "board_cards", columns: "id,client_id,client_name,due_date,drive_link,approval_link,approved,client_feedback,client_status,notification_read" },
-  { table: "clients", columns: "id,drive_folder_id,drive_folder_name" },
+  {
+    table: "profiles",
+    columns:
+      "id,email,full_name,professional_title,bio,location,slug,banner_url,video_url,edit_tools,video_styles,contact_method,contact_value,plan,can_publish_jobs,monthly_revenue_goal,app_language,appearance_theme,account_name,account_photo_url,quote_form_config,created_at,updated_at",
+  },
+  {
+    table: "board_cards",
+    columns:
+      "id,user_id,title,description,client_id,client_name,due_date,column_id,position,drive_link,approval_link,approval_token_hash,approval_expires_at,approved,client_feedback,client_status,notification_read,created_at,updated_at",
+  },
+  {
+    table: "clients",
+    columns:
+      "id,user_id,name,phone,country_code,edit_level,average_duration,frequency,drive_link,drive_folder_id,drive_folder_name,created_at,updated_at",
+  },
+  {
+    table: "finance_transactions",
+    columns: "id,user_id,kind,amount,description,category,client_name,transaction_date,created_at,updated_at",
+  },
+  {
+    table: "fixed_expenses",
+    columns: "id,user_id,name,amount,category,created_at,updated_at",
+  },
   { table: "quote_requests", columns: "id,status,form_answers,pricing_breakdown,calculated_price,manual_adjustment,editor_message,finalized_at" },
+  {
+    table: "job_posts",
+    columns: "id,title,company,location,format,salary,description,contact,status,published_by,created_at,updated_at",
+  },
 ] as const
 
 export async function GET() {
@@ -73,7 +97,9 @@ export async function GET() {
 
   const columns = await Promise.all(
     columnChecks.map(async (check) => {
-      const { error } = await supabase.from(check.table).select(check.columns, { head: true }).limit(1)
+      const table = check.table as string
+      const columnsToSelect = check.columns as string
+      const { error } = await supabase.from(table).select(columnsToSelect, { head: true }).limit(1)
 
       return {
         table: check.table,

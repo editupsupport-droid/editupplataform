@@ -227,7 +227,15 @@ const readJsonResponse = async <T,>(response: Response): Promise<T> => {
   const payload = (await response.json().catch(() => ({}))) as { error?: string }
 
   if (!response.ok) {
-    throw new Error(payload.error ?? "Não foi possível concluir a solicitação.")
+    const path = (() => {
+      try {
+        return new URL(response.url).pathname
+      } catch {
+        return response.url
+      }
+    })()
+    const message = payload.error ?? "Não foi possível concluir a solicitação."
+    throw new Error(`${path || "API"} retornou ${response.status}: ${message}`)
   }
 
   return payload as T
