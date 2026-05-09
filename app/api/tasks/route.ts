@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
+import { createClient } from "@supabase/supabase-js"
 import { z } from "zod"
-import { requireAuthenticatedUser, requireOwnedResource } from "@/lib/supabase-server"
-import { enforceRateLimit, ensureTrustedOrigin, isSafeHttpUrl, sanitizeOptionalPlainText } from "@/lib/security"
 
 export const runtime = "nodejs"
 const taskColumns =
   "id,user_id,title,description,client_id,client_name,due_date,column_id,drive_link,approval_link,approved,client_feedback,client_status,notification_read,created_at,updated_at"
+type RateBucket = { count: number; resetAt: number }
+const taskRateLimitStore = new Map<string, RateBucket>()
 
 const allowedTaskFields = new Set([
   "title",
@@ -50,6 +51,107 @@ const taskDeleteSchema = z.object({
   id: z.string().uuid(),
 })
 
+const normalizeSupabaseUrl = (value?: string) => {
+  if (!value) return undefined
+
+  try {
+    const url = new URL(value.trim().replace(/^['"]|['"]$/g, ""))
+    return url.origin
+  } catch {
+    return value
+  }
+}
+
+const getSupabaseAdmin = () => {
+  const supabaseUrl = normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL)
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("Supabase admin não configurado.")
+  }
+
+  return createClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  })
+}
+
+const requireTasksUser = async (request: NextRequest) => {
+  const authorization = request.headers.get("authorization")
+
+  if (!authorization?.startsWith("Bearer ")) {
+    throw new Error("Não autenticado.")
+  }
+
+  const token = authorization.slice("Bearer ".length).trim()
+  const supabase = getSupabaseAdmin()
+  const { data, error } = await supabase.auth.getUser(token)
+
+  if (error || !data.user) {
+    throw new Error("Não autenticado.")
+  }
+
+  return { supabase, user: data.user }
+}
+
+const sanitizeOptionalPlainText = (value: string | null | undefined) =>
+  value ? value.replace(/[\u0000-\u001f\u007f<>]/g, "").trim() : ""
+
+const normalizeOrigin = (value: string) => {
+  try {
+    return new URL(value).origin
+  } catch {
+    return ""
+  }
+}
+
+const ensureTrustedOrigin = (request: NextRequest) => {
+  const origin = request.headers.get("origin")
+  const referer = request.headers.get("referer")
+  const candidateOrigin = origin ? normalizeOrigin(origin) : referer ? normalizeOrigin(referer) : ""
+
+  if (!candidateOrigin) {
+    return NextResponse.json({ error: "Origem da requisição não pôde ser validada." }, { status: 403 })
+  }
+
+  if (candidateOrigin !== request.nextUrl.origin) {
+    return NextResponse.json({ error: "Origem da requisição não autorizada." }, { status: 403 })
+  }
+
+  return null
+}
+
+const enforceRateLimit = (request: NextRequest, scope: string, max = 80) => {
+  const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+  const key = `${scope}:${forwardedFor || request.headers.get("x-real-ip") || "unknown"}`
+  const now = Date.now()
+  const current = taskRateLimitStore.get(key)
+
+  if (!current || now > current.resetAt) {
+    taskRateLimitStore.set(key, { count: 1, resetAt: now + 15 * 60 * 1000 })
+    return null
+  }
+
+  if (current.count >= max) {
+    return NextResponse.json({ error: "Muitas requisições. Tente novamente em alguns minutos." }, { status: 429 })
+  }
+
+  current.count += 1
+  taskRateLimitStore.set(key, current)
+  return null
+}
+
+const isSafeHttpUrl = (value: string) => {
+  try {
+    const url = new URL(value)
+    return url.protocol === "https:" || (process.env.NODE_ENV !== "production" && url.protocol === "http:")
+  } catch {
+    return false
+  }
+}
+
 const sanitizeTaskPayload = (payload: Record<string, unknown>) =>
   Object.fromEntries(
     Object.entries(payload).filter(
@@ -79,7 +181,7 @@ const normalizeTaskPayload = (payload: Record<string, unknown>) => {
 
 export async function GET(request: NextRequest) {
   try {
-    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { supabase, user } = await requireTasksUser(request)
     const { data, error } = await supabase
       .from("board_cards")
       .select(taskColumns)
@@ -101,10 +203,10 @@ export async function POST(request: NextRequest) {
   try {
     const originError = ensureTrustedOrigin(request)
     if (originError) return originError
-    const rateLimitError = enforceRateLimit(request, { scope: "tasks:post", max: 80 })
+    const rateLimitError = enforceRateLimit(request, "tasks:post", 80)
     if (rateLimitError) return rateLimitError
 
-    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { supabase, user } = await requireTasksUser(request)
     const body = taskCreateSchema.parse(await request.json())
     const payload: Record<string, unknown> = {
       ...normalizeTaskPayload(body),
@@ -138,13 +240,11 @@ export async function PATCH(request: NextRequest) {
   try {
     const originError = ensureTrustedOrigin(request)
     if (originError) return originError
-    const rateLimitError = enforceRateLimit(request, { scope: "tasks:patch", max: 120 })
+    const rateLimitError = enforceRateLimit(request, "tasks:patch", 120)
     if (rateLimitError) return rateLimitError
 
-    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { supabase, user } = await requireTasksUser(request)
     const body = taskPatchSchema.parse(await request.json())
-
-    await requireOwnedResource(supabase, { table: "board_cards", id: body.id, userId: user.id })
 
     const sanitizedChanges = normalizeTaskPayload(body.changes)
 
@@ -188,13 +288,11 @@ export async function DELETE(request: NextRequest) {
   try {
     const originError = ensureTrustedOrigin(request)
     if (originError) return originError
-    const rateLimitError = enforceRateLimit(request, { scope: "tasks:delete", max: 60 })
+    const rateLimitError = enforceRateLimit(request, "tasks:delete", 60)
     if (rateLimitError) return rateLimitError
 
-    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { supabase, user } = await requireTasksUser(request)
     const body = taskDeleteSchema.parse(await request.json())
-
-    await requireOwnedResource(supabase, { table: "board_cards", id: body.id, userId: user.id })
 
     const { data, error } = await supabase
       .from("board_cards")
