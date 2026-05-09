@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
 import { z } from "zod"
 import {
   QUOTE_DURATIONS,
@@ -21,7 +20,7 @@ import {
   summarizeQuoteSelection,
   validateQuoteAnswers,
 } from "@/lib/quote-builder"
-import { enforceApiRateLimit, ensureSameOrigin, requireAdminAuthenticatedUser, sanitizePlainText } from "@/lib/api-admin"
+import { enforceApiRateLimit, ensureSameOrigin, getSupabaseAdmin, requireAdminAuthenticatedUser, sanitizePlainText } from "@/lib/api-admin"
 
 export const runtime = "nodejs"
 
@@ -72,19 +71,6 @@ const reviewQuoteSchema = z.object({
   status: z.enum(["draft", "finalizado"]).default("finalizado"),
 })
 
-const loadAdminClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("Supabase não está configurado.")
-  }
-
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  })
-}
-
 const getObject = (value: unknown) =>
   value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}
 
@@ -97,7 +83,7 @@ const isMissingColumn = (error: unknown, column: string) =>
 export async function GET(request: NextRequest) {
   try {
     const { user } = await requireAdminAuthenticatedUser(request)
-    const supabase = loadAdminClient()
+    const supabase = getSupabaseAdmin()
     let quotesQuery: any = await supabase
       .from("quote_requests")
       .select(quoteColumns)
@@ -162,7 +148,7 @@ export async function POST(request: NextRequest) {
       : isDynamicQuote
         ? dynamicQuoteBodySchema.parse(rawBody)
         : legacyQuoteBodySchema.parse(rawBody)
-    const supabase = loadAdminClient()
+    const supabase = getSupabaseAdmin()
     const authenticated = isManualQuote ? await requireAdminAuthenticatedUser(request) : null
     const editorId = isManualQuote ? authenticated!.user.id : (body as z.infer<typeof dynamicQuoteBodySchema> | z.infer<typeof legacyQuoteBodySchema>).editorId
 
@@ -359,7 +345,7 @@ export async function PATCH(request: NextRequest) {
 
     const { user } = await requireAdminAuthenticatedUser(request)
     const body = reviewQuoteSchema.parse(await request.json())
-    const supabase = loadAdminClient()
+    const supabase = getSupabaseAdmin()
 
     const { data: existing, error: existingError } = await supabase
       .from("quote_requests")

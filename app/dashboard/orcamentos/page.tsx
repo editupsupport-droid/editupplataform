@@ -236,17 +236,27 @@ export default function OrcamentosPage() {
   }
 
   const generateProposalLink = (quote: QuoteItem) => {
-    if (quote.status !== "finalizado") {
-      setError("Finalize a revisão antes de gerar o link da proposta.")
-      return
-    }
-    const addOns = quote.extras?.addOnLabels?.length ? quote.extras.addOnLabels.join(", ") : getQuoteLevelLabel(quote)
-    const editorMessage = quote.editorMessage?.trim()
-    const proposalHtml = `<!doctype html>
+    try {
+      if (quote.status !== "finalizado") {
+        setError("Finalize a revisão antes de gerar o link da proposta.")
+        return
+      }
+
+      setError("")
+      const escapeHtml = (value: string) =>
+        value
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;")
+      const addOns = quote.extras?.addOnLabels?.length ? quote.extras.addOnLabels.join(", ") : getQuoteLevelLabel(quote)
+      const editorMessage = quote.editorMessage?.trim()
+      const proposalHtml = `<!doctype html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <title>Proposta - ${quote.clientName}</title>
+  <title>Proposta - ${escapeHtml(quote.clientName)}</title>
   <style>
     body { font-family: Inter, ui-sans-serif, system-ui, sans-serif; margin: 0; background: #f6f7fb; color: #111827; }
     main { max-width: 760px; margin: 40px auto; background: white; border: 1px solid #e5e7eb; border-radius: 22px; padding: 34px; }
@@ -265,21 +275,30 @@ export default function OrcamentosPage() {
   <main>
     <img src="${window.location.origin}/logo.jpeg" alt="EditUp" />
     <h1>Proposta de edição de vídeo</h1>
-    <p class="muted">Resumo profissional gerado a partir do orçamento solicitado por ${quote.clientName}.</p>
-    ${editorMessage ? `<p class="muted" style="border-left: 3px solid #37352F; padding-left: 14px;">${editorMessage}</p>` : ""}
+    <p class="muted">Resumo profissional gerado a partir do orçamento solicitado por ${escapeHtml(quote.clientName)}.</p>
+    ${editorMessage ? `<p class="muted" style="border-left: 3px solid #37352F; padding-left: 14px;">${escapeHtml(editorMessage)}</p>` : ""}
     <div class="price">${formatQuoteCurrency(quote.totalPrice)}</div>
     <div class="grid">
-      <div class="item"><div class="label">Cliente</div><div class="value">${quote.clientName}</div></div>
-      <div class="item"><div class="label">Projeto</div><div class="value">${getQuoteVideoLabel(quote)}</div></div>
-      <div class="item"><div class="label">Prazo</div><div class="value">${quote.deadline}</div></div>
-      <div class="item"><div class="label">Adicionais</div><div class="value">${addOns}</div></div>
+      <div class="item"><div class="label">Cliente</div><div class="value">${escapeHtml(quote.clientName)}</div></div>
+      <div class="item"><div class="label">Projeto</div><div class="value">${escapeHtml(getQuoteVideoLabel(quote))}</div></div>
+      <div class="item"><div class="label">Prazo</div><div class="value">${escapeHtml(quote.deadline)}</div></div>
+      <div class="item"><div class="label">Adicionais</div><div class="value">${escapeHtml(addOns)}</div></div>
     </div>
     <p class="muted" style="margin-top: 28px; font-size: 13px;">Valores podem ser ajustados após análise de arquivos, referências e escopo final.</p>
   </main>
 </body>
 </html>`
-    const link = `data:text/html;charset=utf-8,${encodeURIComponent(proposalHtml)}`
-    window.open(link, "_blank", "noopener,noreferrer")
+      const blob = new Blob([proposalHtml], { type: "text/html;charset=utf-8" })
+      const url = window.URL.createObjectURL(blob)
+      const opened = window.open(url, "_blank", "noopener,noreferrer")
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 60_000)
+
+      if (!opened) {
+        setError("O navegador bloqueou a abertura da proposta. Permita pop-ups para visualizar o link.")
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Não foi possível gerar a proposta.")
+    }
   }
 
   const finalizeQuoteReview = async (quote: QuoteItem) => {

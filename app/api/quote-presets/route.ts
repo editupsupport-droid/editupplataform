@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
 import { z } from "zod"
 import { quoteAnswersSchema } from "@/lib/quote-builder"
-import { enforceApiRateLimit, ensureSameOrigin, requireAdminAuthenticatedUser, sanitizePlainText } from "@/lib/api-admin"
+import { enforceApiRateLimit, ensureSameOrigin, getSupabaseAdmin, requireAdminAuthenticatedUser, sanitizePlainText } from "@/lib/api-admin"
 
 export const runtime = "nodejs"
 
@@ -16,19 +15,6 @@ const presetSchema = z.object({
   manualAdjustment: z.number().int().min(-1_000_000).max(1_000_000).default(0),
   clientMessage: z.string().trim().max(600).default(""),
 })
-
-const loadAdminClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("Supabase não está configurado.")
-  }
-
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  })
-}
 
 const mapPreset = (item: Record<string, any>) => ({
   id: item.id,
@@ -54,7 +40,7 @@ const safeAnswers = (answers: Record<string, string | string[]>) =>
 export async function GET(request: NextRequest) {
   try {
     const { user } = await requireAdminAuthenticatedUser(request)
-    const supabase = loadAdminClient()
+    const supabase = getSupabaseAdmin()
     const { data, error } = await supabase
       .from("quote_presets")
       .select("id,name,description,category_id,add_on_ids,answers,manual_adjustment,client_message,created_at,updated_at")
@@ -81,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     const { user } = await requireAdminAuthenticatedUser(request)
     const body = presetSchema.parse(await request.json())
-    const supabase = loadAdminClient()
+    const supabase = getSupabaseAdmin()
 
     const payload = {
       editor_id: user.id,
@@ -129,7 +115,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Preset inválido." }, { status: 400 })
     }
 
-    const supabase = loadAdminClient()
+    const supabase = getSupabaseAdmin()
     const { error } = await supabase
       .from("quote_presets")
       .delete()
