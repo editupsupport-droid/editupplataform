@@ -1,128 +1,114 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Check } from "lucide-react"
 
-export function Pricing() {
-  const plans = [
-    {
-      id: "free",
-      name: "Free",
-      price: "R$ 0",
-      period: "",
-      description: "Entre, teste o fluxo e entenda como a EditUp organiza seu trabalho.",
-      features: [
-        "Toda conta nova começa aqui",
-        "Acesso à calculadora de propostas",
-        "Perfil profissional básico",
-        "Upgrade quando quiser",
-      ],
-      cta: "Criar conta grátis",
-      popular: false,
-    },
-    {
-      id: "starter",
-      name: "Starter",
-      price: "R$ 20",
-      period: "pagamento único",
-      description: "Para quem quer começar com o essencial, com acesso direto ao que mais importa.",
-      features: [
-        "Calculadora de propostas",
-        "Pack de edição",
-        "Página profissional",
-        "Área de oportunidades",
-        "Acesso aos recursos essenciais",
-        "Acesso vitalício",
-      ],
-      cta: "Começar com Starter",
-      popular: false,
-    },
-    {
-      id: "essential",
-      name: "Essential",
-      price: "R$ 80",
-      period: "/mês",
-      description: "Para quem quer acesso total à plataforma e uma estrutura realmente completa para crescer.",
-      features: [
-        "Tudo do Starter",
-        "CRM, Produção, Orçamentos e Financeiro",
-        "Links de aprovação para clientes",
-        "Integração com Google Drive",
-        "Comunidade privada",
-        "Alertas de vagas",
-        "Suporte prioritário",
-      ],
-      cta: "Assinar Essential",
-      popular: true,
-    },
-  ]
+const plans = [
+  {
+    id: "starter",
+    name: "Starter",
+    price: "R$25,00",
+    period: "/pgt único",
+    features: ["Calculadora de valor de vídeos", "Pack de edição de vídeos", "Acesso vitalício"],
+  },
+  {
+    id: "essential",
+    name: "Essential",
+    price: "R$80,00",
+    period: "/mês",
+    features: [
+      "Todos recursos do status",
+      "Comunidade privada",
+      "Alertas de vagas de edição",
+      "CRM, Produção, Orçamentos e financeiro.",
+      "Link de aprovação de clientes",
+      "Integração com google drive.",
+    ],
+  },
+]
 
+export function Pricing() {
   return (
-    <section id="pricing" className="py-20 lg:py-32">
-      <div className="mx-auto max-w-7xl px-4 lg:px-8">
-        <div className="mx-auto mb-16 max-w-2xl text-center">
-          <h2 className="mb-4 text-3xl font-bold text-foreground md:text-4xl">
-            Um plano para cada{" "}
-            <span className="text-primary">momento</span>
-          </h2>
-          <p className="text-muted-foreground">
-            Escolha o plano que faz sentido para o seu momento e evolua sem comprar mais do que precisa agora.
-          </p>
+    <section id="pricing" className="bg-white px-5 py-16 text-[#171717] sm:px-8 lg:px-10">
+      <div className="mx-auto max-w-[1080px]">
+        <h2 className="max-w-xl text-4xl font-black leading-[0.98] tracking-[-0.065em] sm:text-5xl">
+          Mais produtividade. Menos ferramentas.
+        </h2>
+
+        <div className="mt-8 rounded-2xl border border-[#e5e1dc] bg-[#fbfbfa] p-6">
+          <div className="grid gap-6 lg:grid-cols-[0.75fr_1.25fr]">
+            <div>
+              <p className="text-sm font-black">Organize toda sua operação em um só lugar.</p>
+              <p className="mt-2 text-sm font-medium leading-6 text-[#666]">
+                Menos troca de ferramenta, menos link perdido e mais contexto para entregar melhor.
+              </p>
+              <div className="mt-8 grid grid-cols-2 gap-3">
+                <SmallStat label="Ferramentas a menos" value="10" />
+                <SmallStat label="Economia estimada" value="US$ 340" />
+                <SmallStat label="Tempo recuperado" value="12h" />
+                <SmallStat label="Receita rastreada" value="R$ 4.080" />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-[#e5e1dc] bg-white p-5">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {[
+                  "CRM",
+                  "Kanban",
+                  "Orçamentos",
+                  "Drive",
+                  "Aprovação",
+                  "Financeiro",
+                  "Perfil",
+                  "Exchange",
+                ].map((item) => (
+                  <div key={item} className="flex items-center gap-2 rounded-xl bg-[#f6f5f2] p-3 text-sm font-bold">
+                    <Check className="h-4 w-4 text-[#0022fe]" />
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="mx-auto grid max-w-5xl gap-8 md:grid-cols-3">
-          {plans.map((plan) => (
-            <Card
-              key={plan.name}
-              className={`relative border-border bg-card ${
-                plan.popular ? "ring-2 ring-primary" : ""
-              }`}
-            >
-              {plan.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="rounded-full bg-primary px-4 py-1 text-xs font-semibold text-primary-foreground">
-                    Mais escolhido
-                  </span>
+        <div className="mt-12 rounded-[24px] border-2 border-[#00195f] bg-[#edf5ff] px-7 py-8 text-[#010b44] sm:px-10 lg:px-12 lg:py-12">
+          <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
+            {plans.map((plan) => (
+              <div key={plan.name}>
+                <h3 className="text-4xl font-black tracking-[-0.06em] sm:text-5xl">{plan.name}</h3>
+                <div className="mt-6 flex flex-wrap items-end gap-x-2">
+                  <span className="text-5xl font-black leading-none tracking-[-0.07em] sm:text-6xl">{plan.price}</span>
+                  <span className="pb-1.5 text-2xl font-medium tracking-[-0.05em] text-[#010b44]">{plan.period}</span>
                 </div>
-              )}
-              <CardHeader className="text-center">
-                <CardTitle className="text-xl text-foreground">{plan.name}</CardTitle>
-                <CardDescription className="text-muted-foreground">{plan.description}</CardDescription>
-                <div className="mt-4">
-                  <span className="text-4xl font-bold text-foreground">{plan.price}</span>
-                  <span className="text-muted-foreground">{plan.period}</span>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3">
+
+                <ul className="mt-10 space-y-5">
                   {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-center gap-3">
-                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/20">
-                        <Check className="h-3 w-3 text-primary" />
-                      </div>
-                      <span className="text-sm text-muted-foreground">{feature}</span>
+                    <li key={feature} className="flex items-start gap-3 text-lg font-semibold leading-tight tracking-[-0.045em]">
+                      <Check className="mt-0.5 h-6 w-6 shrink-0 stroke-[4]" />
+                      <span>{feature}</span>
                     </li>
                   ))}
                 </ul>
-              </CardContent>
-              <CardFooter>
-                <Link href={`/cadastro?plan=${plan.id}`} className="w-full">
-                  <Button
-                    className={`w-full ${
-                      plan.popular
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                        : "border-border bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                    }`}
-                    variant={plan.popular ? "default" : "outline"}
-                  >
-                    {plan.cta}
+
+                <Link href={`/cadastro?plan=${plan.id}`} className="mt-9 inline-flex">
+                  <Button className="h-12 rounded-xl bg-[#00195f] px-6 text-sm font-bold text-white hover:bg-[#0022fe]">
+                    Começar com {plan.name}
                   </Button>
                 </Link>
-              </CardFooter>
-            </Card>
-          ))}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>
+  )
+}
+
+function SmallStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-[#e5e1dc] bg-white p-4">
+      <p className="text-xs font-bold text-[#666]">{label}</p>
+      <p className="mt-2 text-2xl font-black tracking-[-0.06em]">{value}</p>
+    </div>
   )
 }

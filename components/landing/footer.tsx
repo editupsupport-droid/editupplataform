@@ -1,76 +1,35 @@
 import Link from "next/link"
-import { Instagram, Youtube, Mail } from "lucide-react"
+import { Instagram, Mail, Youtube } from "lucide-react"
 
 export function Footer() {
   return (
-    <footer className="border-t border-border/50 bg-background py-12 lg:py-16">
-      <div className="mx-auto max-w-7xl px-4 lg:px-8">
-        <div className="grid gap-8 md:grid-cols-4">
-          <div className="md:col-span-2">
-            <Link href="/" className="flex items-center">
-              <img src="/logo.jpeg" alt="EditUp" className="h-12 w-auto object-contain" />
-            </Link>
-            <p className="mt-4 max-w-xs text-sm text-muted-foreground">
-              Um workspace completo para editores que querem vender, produzir e entregar com mais controle.
-            </p>
-            <div className="mt-6 flex gap-4">
-              <a href="#" className="text-muted-foreground transition-colors hover:text-primary">
-                <Instagram className="h-5 w-5" />
-              </a>
-              <a href="#" className="text-muted-foreground transition-colors hover:text-primary">
-                <Youtube className="h-5 w-5" />
-              </a>
-              <a href="mailto:editupsupport@gmail.com" className="text-muted-foreground transition-colors hover:text-primary">
-                <Mail className="h-5 w-5" />
-              </a>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="mb-4 font-semibold text-foreground">Produto</h3>
-            <ul className="space-y-3 text-sm">
-              <li>
-                <Link href="#features" className="text-muted-foreground transition-colors hover:text-foreground">
-                  Recursos
-                </Link>
-              </li>
-              <li>
-                <Link href="#pricing" className="text-muted-foreground transition-colors hover:text-foreground">
-                  Planos
-                </Link>
-              </li>
-              <li>
-                <Link href="#testimonials" className="text-muted-foreground transition-colors hover:text-foreground">
-                  Depoimentos
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="mb-4 font-semibold text-foreground">Legal</h3>
-            <ul className="space-y-3 text-sm">
-              <li>
-                <Link href="#" className="text-muted-foreground transition-colors hover:text-foreground">
-                  Termos de uso
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-muted-foreground transition-colors hover:text-foreground">
-                  Política de privacidade
-                </Link>
-              </li>
-              <li>
-                <a href="mailto:editupsupport@gmail.com" className="text-muted-foreground transition-colors hover:text-foreground">
-                  Contato
-                </a>
-              </li>
-            </ul>
-          </div>
+    <footer className="border-t border-white/10 bg-[#030713] px-5 py-12 text-white sm:px-8 lg:px-10">
+      <div className="mx-auto flex max-w-[1440px] flex-col gap-8 md:flex-row md:items-center md:justify-between">
+        <div>
+          <Link href="/" className="flex items-center gap-3">
+            <span className="flex h-10 w-10 overflow-hidden rounded-xl bg-white">
+              <img src="/logo.jpeg" alt="EditUp" className="h-full w-full object-cover" />
+            </span>
+            <span className="text-lg font-black">EditUp</span>
+          </Link>
+          <p className="mt-4 max-w-md text-sm font-medium leading-6 text-white/58">
+            Uma plataforma completa para editores de vídeo que querem vender, produzir e entregar com mais controle.
+          </p>
         </div>
 
-        <div className="mt-12 border-t border-border/50 pt-8 text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} EditUp. Todos os direitos reservados.
+        <div className="flex flex-wrap items-center gap-5 text-sm font-bold text-white/70">
+          <Link href="#features" className="hover:text-white">Produtos</Link>
+          <Link href="#pricing" className="hover:text-white">Preços</Link>
+          <a href="mailto:editupsupport@gmail.com" className="hover:text-white">Contato</a>
+          <a href="#" className="hover:text-white" aria-label="Instagram">
+            <Instagram className="h-5 w-5" />
+          </a>
+          <a href="#" className="hover:text-white" aria-label="YouTube">
+            <Youtube className="h-5 w-5" />
+          </a>
+          <a href="mailto:editupsupport@gmail.com" className="hover:text-white" aria-label="Email">
+            <Mail className="h-5 w-5" />
+          </a>
         </div>
       </div>
     </footer>

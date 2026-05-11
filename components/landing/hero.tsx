@@ -1,146 +1,73 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, CheckCircle2, CircleDollarSign, ClipboardList, MessageSquareText, Play, Sparkles } from "lucide-react"
+
+const logoRow = ["Clientes", "Orçamentos", "Produção", "Drive", "Aprovações", "Receita"]
 
 export function Hero() {
-  const columns = [
-    {
-      title: "Briefing",
-      tone: "bg-muted text-muted-foreground",
-      items: ["Orçamento novo", "Cliente aguardando"],
-    },
-    {
-      title: "Produção",
-      tone: "bg-primary/15 text-primary",
-      items: ["Reels V2", "Institucional final"],
-    },
-    {
-      title: "Aprovação",
-      tone: "bg-emerald-500/15 text-emerald-300",
-      items: ["Link enviado", "Pagamento pendente"],
-    },
-  ]
-
   return (
-    <section className="relative overflow-hidden pt-28 pb-16 lg:pt-36 lg:pb-24">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-24 left-1/2 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-primary/14 blur-[72px]" />
+    <section className="relative isolate overflow-hidden bg-[#03083a] text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.2),transparent_28%),linear-gradient(180deg,#02061f_0%,#06105a_100%)]" />
+      <div className="pointer-events-none absolute left-[-14rem] top-40 h-28 w-[48rem] rounded-r-full border-[8px] border-[#3156ff]" />
+      <div className="pointer-events-none absolute right-[-10rem] top-56 h-80 w-[48rem] rounded-l-[8rem] border-[8px] border-[#3156ff]" />
+      <div className="pointer-events-none absolute bottom-28 left-[-8rem] h-48 w-[34rem] rounded-r-[5rem] border-[8px] border-[#3156ff] opacity-70" />
+
+      <div className="relative z-10 border-b border-[#dce2ff] bg-white py-2.5 text-center text-xs font-semibold text-[#030713] sm:text-sm">
+        EditUp: workspace de vendas, produção e aprovação para editores de vídeo.
       </div>
 
-      <div className="relative mx-auto max-w-7xl px-4 lg:px-8">
-        <div className="grid items-center gap-12 lg:grid-cols-[0.92fr,1.08fr]">
-        <div className="max-w-3xl">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2">
-            <span className="h-2 w-2 rounded-full bg-primary" />
-            <span className="text-sm text-muted-foreground">Workspace premium para editores de vídeo</span>
-          </div>
-
-          <h1 className="mb-6 text-balance text-4xl font-bold tracking-tight text-foreground md:text-5xl lg:text-6xl">
-            Toda a operação do seu estúdio em um único lugar.
+      <div className="relative z-10 mx-auto max-w-[1180px] px-5 pb-12 pt-28 sm:px-8 lg:px-10 lg:pt-30">
+        <div className="mx-auto max-w-3xl text-center">
+          <h1 className="text-balance text-4xl font-black leading-[0.98] tracking-[-0.055em] sm:text-5xl lg:text-[4.35rem]">
+            Conheça o sistema que organiza sua operação.
           </h1>
-
-          <p className="mb-10 max-w-2xl text-pretty text-lg text-muted-foreground">
-            A EditUp une orçamentos, CRM, produção, financeiro, Drive e aprovações em uma interface limpa, rápida e feita para quem trabalha com clientes reais.
+          <p className="mx-auto mt-5 max-w-2xl text-balance text-sm font-medium leading-7 text-white/75 sm:text-base">
+            CRM, orçamentos, produção, financeiro, Drive e links de aprovação em uma interface simples para trabalhar com clientes reais.
           </p>
 
-          <div className="flex flex-col gap-4 sm:flex-row">
+          <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
             <Link href="/cadastro">
-              <Button size="lg" className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
-                Criar conta grátis
-                <ArrowRight className="h-4 w-4" />
+              <Button className="h-11 rounded-xl bg-[#4968ff] px-6 text-sm font-bold text-white shadow-[0_16px_40px_rgba(0,34,254,0.35)] hover:bg-[#5b78ff]">
+                Use a EditUp de graça
               </Button>
             </Link>
             <Link href="#features">
-              <Button size="lg" variant="outline" className="gap-2 border-border text-foreground hover:bg-secondary">
-                <Play className="h-4 w-4" />
+              <Button className="h-11 rounded-xl border border-white/15 bg-white/8 px-6 text-sm font-bold text-white hover:bg-white/14 hover:text-white">
                 Ver como funciona
               </Button>
             </Link>
           </div>
+        </div>
 
-          <div className="mt-8 flex flex-wrap gap-3 text-sm text-muted-foreground">
-            {["Orçamento configurável", "Kanban de produção", "Portal de aprovação"].map((item) => (
-              <span key={item} className="inline-flex items-center gap-2 rounded-full border border-border bg-card/70 px-3 py-1.5">
-                <CheckCircle2 className="h-4 w-4 text-primary" />
-                {item}
-              </span>
-            ))}
+        <div className="relative mx-auto mt-10 max-w-[980px]">
+          <FloatingBadge className="-left-8 top-12 hidden rotate-[-8deg] md:flex" label="Cliente novo" tone="bg-[#fff4d6] text-[#342000]" />
+          <FloatingBadge className="-right-7 top-24 hidden rotate-[8deg] md:flex" label="Aprovação" tone="bg-[#ffe4ef] text-[#3c071d]" />
+          <FloatingBadge className="-left-12 bottom-20 hidden rotate-[7deg] md:flex" label="Drive ok" tone="bg-[#ddfff3] text-[#063729]" />
+          <FloatingBadge className="-right-10 bottom-24 hidden rotate-[-9deg] md:flex" label="Receita" tone="bg-[#e7eaff] text-[#101a6b]" />
+
+          <div className="overflow-hidden rounded-[18px] border border-white/18 bg-[#191919] shadow-[0_34px_90px_rgba(0,0,0,0.48)]">
+            <img
+              src="/landing-workspace.png"
+              alt="Workspace da EditUp mostrando o kanban de produção do editor"
+              className="block w-full object-cover"
+            />
           </div>
         </div>
 
-        <div className="relative">
-          <div className="rounded-[28px] border border-border bg-card/80 p-3 shadow-2xl shadow-primary/10">
-            <div className="rounded-2xl border border-border bg-background/95">
-              <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                    <Sparkles className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">EditUp Studio</p>
-                    <p className="text-xs text-muted-foreground">Painel de produção</p>
-                  </div>
-                </div>
-                <div className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">Hoje</div>
-              </div>
-
-              <div className="grid gap-3 p-4 sm:grid-cols-3">
-                {columns.map((column) => (
-                  <div key={column.title} className="rounded-2xl border border-border bg-card/70 p-3">
-                    <div className={`mb-3 inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${column.tone}`}>
-                      {column.title}
-                    </div>
-                    <div className="space-y-2">
-                      {column.items.map((item) => (
-                        <div key={item} className="rounded-xl border border-border bg-background/80 p-3">
-                          <p className="text-sm font-medium text-foreground">{item}</p>
-                          <div className="mt-3 h-1.5 rounded-full bg-secondary">
-                            <div className="h-1.5 w-2/3 rounded-full bg-primary" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="grid gap-3 border-t border-border p-4 sm:grid-cols-3">
-                <div className="rounded-2xl border border-border bg-card/60 p-4">
-                  <CircleDollarSign className="mb-3 h-5 w-5 text-primary" />
-                  <p className="text-xs text-muted-foreground">Receita prevista</p>
-                  <p className="mt-1 text-xl font-semibold text-foreground">R$ 4.280</p>
-                </div>
-                <div className="rounded-2xl border border-border bg-card/60 p-4">
-                  <ClipboardList className="mb-3 h-5 w-5 text-primary" />
-                  <p className="text-xs text-muted-foreground">Projetos ativos</p>
-                  <p className="mt-1 text-xl font-semibold text-foreground">12</p>
-                </div>
-                <div className="rounded-2xl border border-border bg-card/60 p-4">
-                  <MessageSquareText className="mb-3 h-5 w-5 text-primary" />
-                  <p className="text-xs text-muted-foreground">Aprovações</p>
-                  <p className="mt-1 text-xl font-semibold text-foreground">5</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        </div>
-
-        <div className="mt-20 grid gap-4 border-t border-border/50 pt-12 md:grid-cols-3">
-          <div className="rounded-2xl border border-border bg-card/70 p-5 text-center">
-            <div className="text-sm font-semibold text-foreground">Propostas mais profissionais</div>
-            <div className="mt-2 text-sm text-muted-foreground">Configure pacotes, adicionais e links para vender com mais clareza.</div>
-          </div>
-          <div className="rounded-2xl border border-border bg-card/70 p-5 text-center">
-            <div className="text-sm font-semibold text-foreground">Produção com contexto</div>
-            <div className="mt-2 text-sm text-muted-foreground">Cada cliente, entrega, arquivo e aprovação aparece no lugar certo.</div>
-          </div>
-          <div className="rounded-2xl border border-border bg-card/70 p-5 text-center">
-            <div className="text-sm font-semibold text-foreground">Experiência de agência</div>
-            <div className="mt-2 text-sm text-muted-foreground">Portal de aprovação, CRM e financeiro para parecer maior sem complicar.</div>
-          </div>
+        <div className="mx-auto mt-8 flex max-w-3xl flex-wrap justify-center gap-x-6 gap-y-3 text-[11px] font-bold uppercase tracking-[0.08em] text-white/56">
+          {logoRow.map((item) => (
+            <span key={item}>{item}</span>
+          ))}
         </div>
       </div>
     </section>
+  )
+}
+
+function FloatingBadge({ label, tone, className }: { label: string; tone: string; className?: string }) {
+  return (
+    <div className={`absolute z-20 items-center gap-2 rounded-full px-3 py-2 text-xs font-black shadow-xl ${tone} ${className}`}>
+      <span className="h-2 w-2 rounded-full bg-current" />
+      {label}
+    </div>
   )
 }

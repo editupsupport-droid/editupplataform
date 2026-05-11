@@ -1,78 +1,64 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { CalendarDays, Mail, PlayCircle } from "lucide-react"
 
 export function FaqSupport() {
-  const faqItems = [
-    {
-      question: "O que eu libero no plano Free?",
-      answer:
-        "Toda conta nova começa automaticamente no Free, com acesso imediato à calculadora de valores.",
-    },
-    {
-      question: "O que muda no Starter?",
-      answer:
-        "O Starter libera o pack de edição, a área de vagas, a página pública e recursos práticos com acesso vitalício.",
-    },
-    {
-      question: "O que o Essential adiciona além do Starter?",
-      answer:
-        "O Essential adiciona comunidade privada, alertas de vagas, aulas recorrentes, conteúdos em evolução e suporte prioritário.",
-    },
-    {
-      question: "A página profissional já funciona?",
-      answer:
-        "Sim. Você pode montar um perfil público com banner, foto, ferramentas, estilos, vídeos e seu contato principal.",
-    },
-    {
-      question: "Como funcionam as vagas?",
-      answer:
-        "Usuários Starter ou acima podem ver vagas. Alertas e recursos extras ficam mais completos no Essential.",
-    },
-    {
-      question: "Tem garantia?",
-      answer:
-        "Sim. A EditUp inclui garantia de 7 dias para você testar com mais segurança.",
-    },
-  ]
-
   return (
-    <section id="faq" className="border-t border-border/50 py-20 lg:py-32">
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 lg:grid-cols-[1.4fr,0.6fr] lg:px-8">
-        <div>
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold text-foreground md:text-4xl">Perguntas frequentes</h2>
-            <p className="mt-3 max-w-2xl text-muted-foreground">
-              Respostas rápidas sobre recursos, planos e como a plataforma funciona.
+    <section id="faq" className="bg-[#f7f7f5] px-5 py-16 text-[#171717] sm:px-8 lg:px-10">
+      <div className="mx-auto max-w-[1080px]">
+        <h2 className="max-w-2xl text-4xl font-black leading-[0.98] tracking-[-0.065em] sm:text-5xl">
+          Preferido pelas equipes de sucesso.
+        </h2>
+
+        <div className="mt-8 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+          <div className="rounded-2xl border border-[#e5e1dc] bg-white p-6">
+            <p className="text-2xl font-black leading-tight tracking-[-0.055em]">
+              “Hoje a EditUp coloca proposta, cliente, entrega e aprovação no mesmo lugar. O trabalho fica mais leve.”
             </p>
+            <p className="mt-6 text-sm font-bold text-[#666]">Murilo, editor de vídeo</p>
           </div>
-          <div className="grid gap-4">
-            {faqItems.map((item) => (
-              <Card key={item.question} className="border-border bg-card">
-                <CardHeader>
-                  <CardTitle className="text-lg text-foreground">{item.question}</CardTitle>
-                  <CardDescription className="text-muted-foreground">{item.answer}</CardDescription>
-                </CardHeader>
-              </Card>
-            ))}
+          <div className="overflow-hidden rounded-2xl border border-[#e5e1dc] bg-[#171717] p-5 text-white">
+            <div className="flex h-52 items-center justify-center rounded-xl bg-[radial-gradient(circle_at_50%_30%,rgba(255,255,255,0.18),transparent_30%),#222]">
+              <PlayCircle className="h-16 w-16 text-white/80" />
+            </div>
           </div>
         </div>
 
-        <div>
-          <Card className="sticky top-24 border-border bg-card">
-            <CardHeader>
-              <CardTitle className="text-foreground">Suporte</CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Se você precisar de ajuda com acesso, planos ou uso da plataforma:
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
-              <p>
-                <span className="font-medium text-foreground">Email:</span> editupsupport@gmail.com
-              </p>
-              <p>
-                <span className="font-medium text-foreground">WhatsApp:</span> 81997985738
-              </p>
-            </CardContent>
-          </Card>
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          {["Mais clareza para vender", "Menos cobrança no WhatsApp", "Entrega com cara profissional"].map((item) => (
+            <div key={item} className="rounded-2xl border border-[#e5e1dc] bg-white p-5 text-sm font-bold">
+              {item}
+              <p className="mt-2 text-sm font-medium leading-6 text-[#666]">Fluxos simples, mas com profundidade suficiente para operação real.</p>
+            </div>
+          ))}
+        </div>
+
+        <h2 className="mt-16 max-w-xl text-4xl font-black leading-[0.98] tracking-[-0.065em] sm:text-5xl">
+          Teste gratuitamente.
+        </h2>
+
+        <div className="mt-8 grid gap-4 lg:grid-cols-2">
+          <div className="rounded-2xl border border-[#e5e1dc] bg-white p-6">
+            <Mail className="h-7 w-7" />
+            <h3 className="mt-6 text-2xl font-black tracking-[-0.055em]">Comece a usar a EditUp</h3>
+            <p className="mt-3 text-sm font-medium leading-6 text-[#666]">Crie sua conta, entre no dashboard e teste o fluxo principal antes de assinar.</p>
+            <Link href="/cadastro" className="mt-7 inline-flex">
+              <Button className="rounded-xl bg-[#171717] px-6 font-bold text-white hover:bg-[#0022fe]">
+                Criar conta grátis
+              </Button>
+            </Link>
+          </div>
+
+          <div className="rounded-2xl border border-[#e5e1dc] bg-white p-6">
+            <CalendarDays className="h-7 w-7" />
+            <h3 className="mt-6 text-2xl font-black tracking-[-0.055em]">Solicite uma demonstração</h3>
+            <p className="mt-3 text-sm font-medium leading-6 text-[#666]">Quer validar o fluxo antes de lançar para clientes? Fale com o suporte.</p>
+            <a href="mailto:editupsupport@gmail.com" className="mt-7 inline-flex">
+              <Button variant="outline" className="rounded-xl border-[#171717] px-6 font-bold text-[#171717] hover:bg-[#171717] hover:text-white">
+                Falar com suporte
+              </Button>
+            </a>
+          </div>
         </div>
       </div>
     </section>

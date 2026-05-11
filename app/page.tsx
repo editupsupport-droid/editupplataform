@@ -1,4 +1,4 @@
-import { Poppins } from "next/font/google"
+import { Montserrat } from "next/font/google"
 import { Header } from "@/components/landing/header"
 import { Hero } from "@/components/landing/hero"
 import { Features } from "@/components/landing/features"
@@ -7,14 +7,14 @@ import { FaqSupport } from "@/components/landing/faq-support"
 import { Footer } from "@/components/landing/footer"
 import { cn } from "@/lib/utils"
 
-const poppins = Poppins({
+const montserrat = Montserrat({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700", "800", "900"],
 })
 
 export default function Home() {
   return (
-    <div className={cn("landing-legacy min-h-screen bg-background", poppins.className)}>
+    <div className={cn("landing-legacy min-h-screen bg-[#f7f7f5]", montserrat.className)}>
       <Header />
       <main>
         <Hero />
