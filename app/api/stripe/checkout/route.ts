@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { planMeets } from "@/lib/app-data"
+import { planMeets, type PlanId } from "@/lib/app-data"
 import { enforceRateLimit, ensureTrustedOrigin } from "@/lib/security"
 import { requireAuthenticatedUser } from "@/lib/supabase-server"
 import { getStripe, stripePrices } from "@/lib/stripe"
@@ -8,7 +8,7 @@ import { getStripe, stripePrices } from "@/lib/stripe"
 export const runtime = "nodejs"
 
 const checkoutSchema = z.object({
-  plan: z.enum(["starter", "essential"]),
+  plan: z.enum(["essential", "pro"]),
 })
 
 export async function POST(request: NextRequest) {
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       }
     )
 
-    const profiles = (await profileResponse.json().catch(() => [])) as Array<{ plan?: "free" | "starter" | "essential" }>
+    const profiles = (await profileResponse.json().catch(() => [])) as Array<{ plan?: PlanId }>
     const currentPlan = profiles[0]?.plan ?? "free"
 
     if (planMeets(currentPlan, plan)) {
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     const stripe = getStripe()
     const session = await stripe.checkout.sessions.create({
-      mode: plan === "starter" ? "payment" : "subscription",
+      mode: "subscription",
       customer_email: email,
       line_items: [
         {
@@ -67,6 +67,12 @@ export async function POST(request: NextRequest) {
       metadata: {
         plan,
         userId,
+      },
+      subscription_data: {
+        metadata: {
+          plan,
+          userId,
+        },
       },
       success_url: `${request.nextUrl.origin}/dashboard/planos?checkout=success`,
       cancel_url: `${request.nextUrl.origin}/dashboard/planos?checkout=cancelled`,

@@ -12,8 +12,8 @@ import { useAppSession } from "@/components/app/app-provider"
 
 const PLAN_CONTENT = {
   free: [
-    "Toda conta começa no plano Free",
-    "Acesso à calculadora de propostas",
+    "Toda conta começa no Starter gratuito",
+    "Agenda, clientes e página profissional",
     "Upgrade disponível a qualquer momento",
   ],
   starter: [
@@ -26,8 +26,13 @@ const PLAN_CONTENT = {
     "Tudo do Starter",
     "Acesso completo à plataforma",
     "CRM, Produção, Financeiro e Drive",
-    "Comunidade privada",
-    "Suporte prioritário",
+    "Marketplace com download liberado",
+  ],
+  pro: [
+    "Tudo do Essential",
+    "Creative Cloud",
+    "Customização de logo",
+    "Benefícios Pro com pagamento ativo",
   ],
 } as const
 
@@ -45,7 +50,7 @@ export default function LoginPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const plan = params.get("plan")
-    if (plan === "starter" || plan === "essential" || plan === "free") {
+    if (plan === "starter" || plan === "essential" || plan === "free" || plan === "pro") {
       setSelectedPlan(plan)
     }
   }, [])
@@ -185,7 +190,7 @@ export default function LoginPage() {
         </Card>
           <div className="hidden flex-col justify-center rounded-3xl border border-border bg-card/70 p-8 md:flex">
             <h3 className="mb-2 text-2xl font-semibold text-foreground">
-              O plano {selectedPlan === "free" ? "Free" : selectedPlan === "starter" ? "Starter" : "Essential"} inclui:
+              O plano {selectedPlan === "free" ? "Starter" : selectedPlan === "starter" ? "Starter" : selectedPlan === "pro" ? "Pro" : "Essential"} inclui:
             </h3>
             <p className="mb-6 text-sm text-muted-foreground">
               Uma experiência limpa para precificar, organizar entregas e operar com mais confiança.

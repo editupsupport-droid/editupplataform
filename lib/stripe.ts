@@ -19,8 +19,9 @@ export const getStripe = () => {
 export const stripePrices = {
   starter: process.env.STRIPE_PRICE_STARTER,
   essential: process.env.STRIPE_PRICE_ESSENTIAL,
+  pro: process.env.STRIPE_PRICE_PRO,
 }
 
 export const isStripeConfigured = Boolean(
-  secretKey && stripePrices.starter && stripePrices.essential
+  secretKey && stripePrices.essential && stripePrices.pro
 )

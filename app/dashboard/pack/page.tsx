@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FeedbackBanner } from "@/components/dashboard/feedback-banner"
+import { UpgradePaywall } from "@/components/dashboard/upgrade-paywall"
 import { useAppSession } from "@/components/app/app-provider"
+import { planMeets } from "@/lib/app-data"
 import { authFetch } from "@/lib/supabase"
 import { fetchWorkspaceClients, getCachedWorkspaceClients, subscribeWorkspaceSync } from "@/lib/workspace-db"
 
@@ -24,7 +26,7 @@ type PackResource = {
   title: string
   category: "Vídeos brutos" | "Software" | "Sound Effects" | "Presets"
   description: string
-  url: string
+  url?: string
   icon: LucideIcon
 }
 
@@ -135,6 +137,13 @@ const resources: PackResource[] = [
     url: "https://drive.google.com/drive/folders/1YiDNtcmtnn_AC2Huziw37jBy7tYPBTma?usp=sharing",
     icon: Wand2,
   },
+  {
+    id: "preset-motion",
+    title: "Motion",
+    category: "Presets",
+    description: "Melhores motions em alta.",
+    icon: Wand2,
+  },
 ]
 
 const categories: PackCategory[] = ["Todos", "Vídeos brutos", "Sound Effects", "Presets", "Software"]
@@ -142,7 +151,7 @@ const categories: PackCategory[] = ["Todos", "Vídeos brutos", "Sound Effects", 
 const buildResourceFile = (resource: PackResource) =>
   new File(
     [
-      `EditUp Editing Pack\n\nRecurso: ${resource.title}\nCategoria: ${resource.category}\nLink: ${resource.url}\n\n${resource.description}\n`,
+      `EditUp Editing Pack\n\nRecurso: ${resource.title}\nCategoria: ${resource.category}\nLink: ${resource.url ?? "Em breve"}\n\n${resource.description}\n`,
     ],
     `${resource.id}.txt`,
     { type: "text/plain" }
@@ -156,6 +165,8 @@ export default function PackPage() {
   const [activeCategory, setActiveCategory] = useState<PackCategory>("Todos")
   const [feedbackMessage, setFeedbackMessage] = useState("")
   const [feedbackError, setFeedbackError] = useState("")
+  const [paywallOpen, setPaywallOpen] = useState(false)
+  const canDownloadPack = currentUser ? planMeets(currentUser.plan, "essential") : false
 
   const linkedClients = useMemo(() => clientes.filter((cliente) => cliente.driveFolderId), [clientes])
   const filteredResources = useMemo(() => {
@@ -198,10 +209,25 @@ export default function PackPage() {
   }, [currentUser])
 
   const handleDownload = (resource: PackResource) => {
+    if (!canDownloadPack) {
+      setPaywallOpen(true)
+      return
+    }
+
+    if (!resource.url) {
+      setFeedbackError("Link deste recurso será adicionado em breve.")
+      return
+    }
+
     window.open(resource.url, "_blank", "noopener,noreferrer")
   }
 
   const handleSaveToDrive = async (resource: PackResource) => {
+    if (!canDownloadPack) {
+      setPaywallOpen(true)
+      return
+    }
+
     if (!selectedFolderId) {
       setFeedbackError("Selecione uma pasta de cliente antes de salvar no Drive.")
       return
@@ -277,6 +303,13 @@ export default function PackPage() {
 
       <FeedbackBanner message={feedbackMessage} type="success" />
       <FeedbackBanner message={feedbackError} type="error" />
+      <UpgradePaywall
+        open={paywallOpen}
+        onOpenChange={setPaywallOpen}
+        title="Download liberado no Essential"
+        description="No Starter você pode visualizar o Pack. Para baixar arquivos ou salvar no Drive, faça upgrade para o Essential."
+        requiredPlan="Essential"
+      />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {filteredResources.map((resource) => (
@@ -294,7 +327,7 @@ export default function PackPage() {
             <CardContent className="space-y-3">
               <Button variant="outline" className="w-full border-border" onClick={() => handleDownload(resource)}>
                 <Download className="mr-2 h-4 w-4" />
-                Download direto
+                {canDownloadPack ? (resource.url ? "Download direto" : "Link em breve") : "Desbloquear download"}
               </Button>
               <Button
                 className="w-full bg-primary text-primary-foreground hover:bg-primary/90"

@@ -66,6 +66,16 @@ const isMissingApprovalLinksTable = (message?: string | null) =>
   (message.includes("approval_links") &&
     (message.includes("schema cache") || message.includes("Could not find the table") || message.includes("does not exist")))
 
+const parseEditorLogoUrl = (rawValue: unknown) => {
+  if (typeof rawValue !== "string" || !rawValue.trim()) return ""
+  try {
+    const parsed = JSON.parse(rawValue) as { photoUrl?: unknown }
+    return typeof parsed.photoUrl === "string" ? parsed.photoUrl : ""
+  } catch {
+    return ""
+  }
+}
+
 const approvalResponseSchema = z.object({
   action: z.enum(["approve", "revision"]),
   items: z
@@ -164,10 +174,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     if (task.user_id) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name,professional_title,bio,location,slug,contact_method,contact_value")
+        .select("full_name,professional_title,bio,location,slug,contact_method,contact_value,plan,banner_url")
         .eq("id", task.user_id)
         .maybeSingle()
-      editor = profile ?? null
+      editor = profile ? { ...profile, logo_url: parseEditorLogoUrl(profile.banner_url) } : null
     }
 
     return NextResponse.json({

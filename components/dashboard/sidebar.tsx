@@ -10,6 +10,7 @@ import {
   CalendarDays,
   ChevronDown,
   ClipboardList,
+  Crown,
   FolderOpen,
   HardDrive,
   Instagram,
@@ -369,6 +370,20 @@ export function DashboardSidebar() {
 
           <div className="border-t border-sidebar-border p-4">
             {currentUser ? (
+              <div className="flex flex-col gap-2">
+                {!canAccessDashboardPath("/dashboard/financeiro", currentUser.plan) && (
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false)
+                      router.push("/dashboard/planos")
+                    }}
+                    className="h-10 w-full justify-start rounded-lg bg-primary px-3 text-primary-foreground hover:bg-primary/90"
+                  >
+                    <Crown className="mr-2 h-4 w-4" />
+                    Upgrade
+                  </Button>
+                )}
               <div className="flex flex-col gap-1 rounded-lg border border-sidebar-border bg-sidebar-accent p-1">
                 <Button
                   type="button"
@@ -412,6 +427,7 @@ export function DashboardSidebar() {
                   <LogOut className="h-4 w-4" />
                   <span className="ml-2">{t("logout")}</span>
                 </Button>
+              </div>
               </div>
             ) : null}
           </div>

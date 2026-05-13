@@ -1,114 +1,110 @@
+"use client"
+
 import Link from "next/link"
+import { Check, Sparkles } from "lucide-react"
+import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { Check } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 const plans = [
   {
-    id: "starter",
+    id: "free",
     name: "Starter",
-    price: "R$25,00",
-    period: "/pgt único",
-    features: ["Calculadora de valor de vídeos", "Pack de edição de vídeos", "Acesso vitalício"],
+    monthly: "R$0",
+    annual: "R$0",
+    description: "Para organizar o básico sem custo.",
+    features: ["Agenda e clientes", "Página profissional", "Marketplace para visualização"],
   },
   {
     id: "essential",
     name: "Essential",
-    price: "R$80,00",
-    period: "/mês",
-    features: [
-      "Todos recursos do status",
-      "Comunidade privada",
-      "Alertas de vagas de edição",
-      "CRM, Produção, Orçamentos e financeiro.",
-      "Link de aprovação de clientes",
-      "Integração com google drive.",
-    ],
+    monthly: "R$60",
+    annual: "R$600",
+    description: "Melhor custo-benefício para operar com clientes.",
+    features: ["Tudo do Starter", "CRM + Financeiro", "Download no Marketplace", "Aprovação sem marca", "Google Drive"],
+    highlighted: true,
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    monthly: "R$80",
+    annual: "R$800",
+    description: "Para quem quer benefício premium e escala.",
+    features: ["Tudo do Essential", "Creative Cloud", "Logo personalizada", "Marketplace com destaque"],
   },
 ]
 
 export function Pricing() {
   return (
-    <section id="pricing" className="bg-white px-5 py-16 text-[#171717] sm:px-8 lg:px-10">
-      <div className="mx-auto max-w-[1080px]">
-        <h2 className="max-w-xl text-4xl font-black leading-[0.98] tracking-[-0.065em] sm:text-5xl">
-          Mais produtividade. Menos ferramentas.
-        </h2>
+    <section id="pricing" className="bg-white px-4 py-20 sm:px-6">
+      <div className="mx-auto max-w-6xl">
+        <motion.div
+          initial={{ opacity: 0, y: 22 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.42 }}
+          className="mx-auto max-w-2xl text-center"
+        >
+          <p className="text-sm font-semibold text-[#0022fe]">Decisão simples</p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-[-0.02em] text-[#050505] sm:text-5xl">
+            Escolha o nível da sua operação.
+          </h2>
+          <p className="mt-4 text-base leading-7 text-[#6b7280]">
+            Comece grátis. Faça upgrade quando precisar baixar recursos, remover marca e controlar o financeiro.
+          </p>
+        </motion.div>
 
-        <div className="mt-8 rounded-2xl border border-[#e5e1dc] bg-[#fbfbfa] p-6">
-          <div className="grid gap-6 lg:grid-cols-[0.75fr_1.25fr]">
-            <div>
-              <p className="text-sm font-black">Organize toda sua operação em um só lugar.</p>
-              <p className="mt-2 text-sm font-medium leading-6 text-[#666]">
-                Menos troca de ferramenta, menos link perdido e mais contexto para entregar melhor.
-              </p>
-              <div className="mt-8 grid grid-cols-2 gap-3">
-                <SmallStat label="Ferramentas a menos" value="10" />
-                <SmallStat label="Economia estimada" value="US$ 340" />
-                <SmallStat label="Tempo recuperado" value="12h" />
-                <SmallStat label="Receita rastreada" value="R$ 4.080" />
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-[#e5e1dc] bg-white p-5">
-              <div className="grid gap-3 sm:grid-cols-2">
-                {[
-                  "CRM",
-                  "Kanban",
-                  "Orçamentos",
-                  "Drive",
-                  "Aprovação",
-                  "Financeiro",
-                  "Perfil",
-                  "Exchange",
-                ].map((item) => (
-                  <div key={item} className="flex items-center gap-2 rounded-xl bg-[#f6f5f2] p-3 text-sm font-bold">
-                    <Check className="h-4 w-4 text-[#0022fe]" />
-                    {item}
+        <Tabs defaultValue="monthly" className="mt-10 items-center">
+          <TabsList className="border border-[#e5e7eb] bg-[#f9fafb]">
+            <TabsTrigger value="monthly">Mensal</TabsTrigger>
+            <TabsTrigger value="annual">Anual</TabsTrigger>
+          </TabsList>
+          {(["monthly", "annual"] as const).map((billing) => (
+            <TabsContent key={billing} value={billing} className="mt-8 w-full">
+              <div className="grid gap-5 md:grid-cols-3">
+                {plans.map((plan) => (
+                  <div
+                    key={plan.id}
+                    className={`relative rounded-2xl border p-6 ${
+                      plan.highlighted
+                        ? "border-[#0022fe] bg-[#f8faff] shadow-xl shadow-[#0022fe]/10"
+                        : "border-[#e5e7eb] bg-white"
+                    }`}
+                  >
+                    {plan.highlighted && (
+                      <span className="absolute -top-3 left-6 inline-flex items-center gap-1 rounded-full bg-[#0022fe] px-3 py-1 text-xs font-semibold text-white">
+                        <Sparkles className="h-3 w-3" />
+                        Melhor custo-benefício
+                      </span>
+                    )}
+                    <h3 className="text-xl font-semibold tracking-[-0.02em] text-[#111827]">{plan.name}</h3>
+                    <p className="mt-2 min-h-12 text-sm leading-6 text-[#6b7280]">{plan.description}</p>
+                    <div className="mt-6">
+                      <span className="text-4xl font-semibold tracking-[-0.02em] text-[#111827]">
+                        {billing === "monthly" ? plan.monthly : plan.annual}
+                      </span>
+                      <span className="text-sm text-[#6b7280]">{plan.id === "free" ? "" : billing === "monthly" ? "/mês" : "/ano"}</span>
+                    </div>
+                    <ul className="mt-6 space-y-3">
+                      {plan.features.map((feature) => (
+                        <li key={feature} className="flex items-start gap-3 text-sm text-[#374151]">
+                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#0022fe]" />
+                          {feature}
+                        </li>
+                      ))}
+                    </ul>
+                    <Link href={`/cadastro?plan=${plan.id}`} className="mt-7 block">
+                      <Button className={`h-11 w-full rounded-lg ${plan.highlighted ? "bg-[#0022fe] text-white hover:bg-[#001bd1]" : "bg-[#111827] text-white hover:bg-[#0022fe]"}`}>
+                        {plan.id === "free" ? "Começar grátis" : "Escalar minha operação"}
+                      </Button>
+                    </Link>
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-12 rounded-[24px] border-2 border-[#00195f] bg-[#edf5ff] px-7 py-8 text-[#010b44] sm:px-10 lg:px-12 lg:py-12">
-          <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
-            {plans.map((plan) => (
-              <div key={plan.name}>
-                <h3 className="text-4xl font-black tracking-[-0.06em] sm:text-5xl">{plan.name}</h3>
-                <div className="mt-6 flex flex-wrap items-end gap-x-2">
-                  <span className="text-5xl font-black leading-none tracking-[-0.07em] sm:text-6xl">{plan.price}</span>
-                  <span className="pb-1.5 text-2xl font-medium tracking-[-0.05em] text-[#010b44]">{plan.period}</span>
-                </div>
-
-                <ul className="mt-10 space-y-5">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-3 text-lg font-semibold leading-tight tracking-[-0.045em]">
-                      <Check className="mt-0.5 h-6 w-6 shrink-0 stroke-[4]" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <Link href={`/cadastro?plan=${plan.id}`} className="mt-9 inline-flex">
-                  <Button className="h-12 rounded-xl bg-[#00195f] px-6 text-sm font-bold text-white hover:bg-[#0022fe]">
-                    Começar com {plan.name}
-                  </Button>
-                </Link>
-              </div>
-            ))}
-          </div>
-        </div>
+            </TabsContent>
+          ))}
+        </Tabs>
       </div>
     </section>
-  )
-}
-
-function SmallStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-[#e5e1dc] bg-white p-4">
-      <p className="text-xs font-bold text-[#666]">{label}</p>
-      <p className="mt-2 text-2xl font-black tracking-[-0.06em]">{value}</p>
-    </div>
   )
 }

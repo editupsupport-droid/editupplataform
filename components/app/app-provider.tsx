@@ -128,13 +128,25 @@ const mapProfileToAppUser = (profile: Record<string, unknown>): AppUser => {
   const accountPosition = accountMeta?.photoPosition && typeof accountMeta.photoPosition === "object"
     ? accountMeta.photoPosition as Record<string, unknown>
     : null
+  const normalizedPlan = isValidPlan(profile.plan) ? profile.plan : "free"
+  const normalizedSubscriptionStatus =
+    profile.subscription_status === "active" ||
+    profile.subscription_status === "trialing" ||
+    profile.subscription_status === "past_due" ||
+    profile.subscription_status === "canceled" ||
+    profile.subscription_status === "incomplete" ||
+    profile.subscription_status === "none"
+      ? profile.subscription_status
+      : "none"
 
   return {
     id: String(profile.id),
     name: String(accountMeta?.name ?? profile.full_name ?? profile.email ?? "Editor"),
     email: String(profile.email ?? ""),
     password: "",
-    plan: (profile.plan as AppUser["plan"]) ?? "free",
+    plan: normalizedPlan,
+    subscriptionStatus: normalizedSubscriptionStatus,
+    creativeCloudRedeemAvailableUntil: typeof profile.creative_cloud_redeem_available_until === "string" ? profile.creative_cloud_redeem_available_until : undefined,
     createdAt: String(profile.created_at ?? new Date().toISOString()),
     monthlyRevenueGoal: Number(profile.monthly_revenue_goal ?? 5000),
     appLanguage:
@@ -191,7 +203,7 @@ const mapJobRow = (job: Record<string, unknown>, activeUser: AppUser | null): Jo
 }
 
 const isValidPlan = (value: unknown): value is PlanId =>
-  value === "free" || value === "starter" || value === "essential"
+  value === "free" || value === "starter" || value === "essential" || value === "pro"
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [users, setUsers] = useState<AppUser[]>([])
@@ -788,11 +800,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     const supabase = getSupabaseClient()
-    const redirectTo = `${window.location.origin}/`
+    const redirectTo = `${window.location.origin}/auth/callback`
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo,
+        queryParams: {
+          prompt: "select_account",
+        },
       },
     })
 
@@ -825,7 +840,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (isSupabaseConfigured) {
       const { error } = await getSupabaseClient()
         .from("profiles")
-        .update({ plan })
+        .update({
+          plan,
+          subscription_tier: plan === "pro" ? "pro" : plan === "essential" ? "essential" : "starter",
+          subscription_status: plan === "free" || plan === "starter" ? "none" : "active",
+        })
         .eq("id", currentUser.id)
 
       if (error) {

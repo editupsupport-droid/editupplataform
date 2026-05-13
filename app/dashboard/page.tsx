@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useEffect, useMemo, useState, type ComponentProps } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowUpRight, BriefcaseBusiness, CalendarDays, CheckCircle2, RotateCcw, Wallet } from "lucide-react"
+import { ArrowUpRight, BriefcaseBusiness, CalendarDays, CheckCircle2, Crown, RotateCcw, Wallet } from "lucide-react"
 import {
   Bar,
   BarChart,
@@ -18,6 +18,7 @@ import {
 } from "recharts"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -282,6 +283,12 @@ export default function DashboardPage() {
   ]
 
   if (!currentUser) return null
+  const creativeCloudRedeemExpiresAt = currentUser.creativeCloudRedeemAvailableUntil ? new Date(currentUser.creativeCloudRedeemAvailableUntil) : null
+  const showCreativeCloudRedeem =
+    currentUser.plan === "pro" &&
+    currentUser.subscriptionStatus === "active" &&
+    creativeCloudRedeemExpiresAt &&
+    creativeCloudRedeemExpiresAt.getTime() > Date.now()
 
   const openTask = (taskId: string) => {
     router.push(`/dashboard/kanban?taskId=${encodeURIComponent(taskId)}`)
@@ -300,6 +307,26 @@ export default function DashboardPage() {
       </div>
 
       <FeedbackBanner message={feedbackError} type="error" />
+      {showCreativeCloudRedeem && (
+        <DashboardCard className="border-[#0022fe]/40 bg-[radial-gradient(circle_at_top_right,rgba(0,34,254,0.18),transparent_32%),var(--exec-card)]">
+          <CardContent className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#0022fe] text-white">
+                <Crown className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="font-semibold text-[var(--exec-text)]">Resgate sua Creative Cloud Pro</p>
+                <p className="mt-1 text-sm text-[var(--exec-muted)]">
+                  Benefício disponível por 3 dias após a compra. Prazo: {creativeCloudRedeemExpiresAt.toLocaleDateString("pt-BR")}.
+                </p>
+              </div>
+            </div>
+            <Button onClick={() => router.push("/dashboard/configuracoes?section=plans")}>
+              Resgatar assinatura
+            </Button>
+          </CardContent>
+        </DashboardCard>
+      )}
 
       {isLoading ? (
         <DashboardCard>

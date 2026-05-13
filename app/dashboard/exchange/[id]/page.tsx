@@ -10,6 +10,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Textarea } from "@/components/ui/textarea"
 import { FeedbackBanner } from "@/components/dashboard/feedback-banner"
+import { UpgradePaywall } from "@/components/dashboard/upgrade-paywall"
+import { useAppSession } from "@/components/app/app-provider"
+import { planMeets } from "@/lib/app-data"
 import { authFetch } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 
@@ -47,6 +50,7 @@ const formatDate = (value: string) =>
 export default function ExchangeResourceDetailPage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
+  const { currentUser } = useAppSession()
   const resourceId = params.id
   const [resource, setResource] = useState<ExchangeResource | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -55,6 +59,8 @@ export default function ExchangeResourceDetailPage() {
   const [comment, setComment] = useState("")
   const [feedbackMessage, setFeedbackMessage] = useState("")
   const [feedbackError, setFeedbackError] = useState("")
+  const [paywallOpen, setPaywallOpen] = useState(false)
+  const canDownloadMarketplace = currentUser ? planMeets(currentUser.plan, "essential") : false
 
   const loadResource = async () => {
     setIsLoading(true)
@@ -131,6 +137,11 @@ export default function ExchangeResourceDetailPage() {
 
   const importToDrive = async () => {
     if (!resource) return
+    if (!canDownloadMarketplace) {
+      setPaywallOpen(true)
+      return
+    }
+
     setIsImporting(true)
     setFeedbackError("")
     setFeedbackMessage("")
@@ -154,6 +165,11 @@ export default function ExchangeResourceDetailPage() {
 
   const downloadToPc = () => {
     if (!resource) return
+    if (!canDownloadMarketplace) {
+      setPaywallOpen(true)
+      return
+    }
+
     window.open(`https://drive.google.com/uc?export=download&id=${encodeURIComponent(resource.driveFolderId)}`, "_blank", "noopener,noreferrer")
   }
 
@@ -199,6 +215,13 @@ export default function ExchangeResourceDetailPage() {
 
   return (
     <div className="space-y-6">
+      <UpgradePaywall
+        open={paywallOpen}
+        onOpenChange={setPaywallOpen}
+        title="Downloads liberados no Essential"
+        description="No Starter você pode visualizar recursos do Exchange. Para baixar no Drive ou no PC, faça upgrade para o Essential."
+        requiredPlan="Essential"
+      />
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <Button asChild variant="outline" className="w-fit border-border">
           <Link href="/dashboard/exchange">

@@ -14,7 +14,10 @@ import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { FeedbackBanner } from "@/components/dashboard/feedback-banner"
+import { UpgradePaywall } from "@/components/dashboard/upgrade-paywall"
 import { DrivePickerButton } from "@/components/google-drive/drive-picker-button"
+import { useAppSession } from "@/components/app/app-provider"
+import { planMeets } from "@/lib/app-data"
 import { authFetch } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 
@@ -79,6 +82,7 @@ const readImageAsDataUrl = (file: File) =>
   })
 
 export default function CommunityExchangePage() {
+  const { currentUser } = useAppSession()
   const [resources, setResources] = useState<ExchangeResource[]>([])
   const [query, setQuery] = useState("")
   const [activeHashtag, setActiveHashtag] = useState("")
@@ -88,6 +92,8 @@ export default function CommunityExchangePage() {
   const [feedbackMessage, setFeedbackMessage] = useState("")
   const [feedbackError, setFeedbackError] = useState("")
   const [importingId, setImportingId] = useState("")
+  const [paywallOpen, setPaywallOpen] = useState(false)
+  const canDownloadMarketplace = currentUser ? planMeets(currentUser.plan, "essential") : false
   const [postForm, setPostForm] = useState({
     title: "",
     description: "",
@@ -243,10 +249,20 @@ export default function CommunityExchangePage() {
   }
 
   const downloadToPc = (resource: ExchangeResource) => {
+    if (!canDownloadMarketplace) {
+      setPaywallOpen(true)
+      return
+    }
+
     window.open(`https://drive.google.com/uc?export=download&id=${encodeURIComponent(resource.driveFolderId)}`, "_blank", "noopener,noreferrer")
   }
 
   const importToDrive = async (resourceId: string) => {
+    if (!canDownloadMarketplace) {
+      setPaywallOpen(true)
+      return
+    }
+
     setImportingId(resourceId)
     setFeedbackError("")
     setFeedbackMessage("")
@@ -376,6 +392,13 @@ export default function CommunityExchangePage() {
 
       <FeedbackBanner message={feedbackMessage} type="success" />
       <FeedbackBanner message={feedbackError} type="error" />
+      <UpgradePaywall
+        open={paywallOpen}
+        onOpenChange={setPaywallOpen}
+        title="Downloads liberados no Essential"
+        description="No Starter você pode visualizar o Exchange. Para baixar no Drive ou no PC, faça upgrade para o Essential."
+        requiredPlan="Essential"
+      />
 
       <Card className="rounded-[12px] border-border bg-card">
         <CardContent className="space-y-4 p-4">

@@ -35,15 +35,14 @@ export function DashboardAccessGuard({ children }: { children: React.ReactNode }
     return <>{children}</>
   }
 
-  const isFreeUser = currentUser.plan === "free"
-  const isStarterUser = currentUser.plan === "starter"
+  const isStarterTier = currentUser.plan === "free" || currentUser.plan === "starter"
 
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-2xl items-center">
       <Card className="w-full border-primary/40 bg-card">
         <CardContent className="space-y-5 p-8 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/15">
-            {isFreeUser ? (
+              {isStarterTier ? (
               <Lock className="h-8 w-8 text-primary" />
             ) : (
               <Crown className="h-8 w-8 text-primary" />
@@ -51,14 +50,12 @@ export function DashboardAccessGuard({ children }: { children: React.ReactNode }
           </div>
           <div className="space-y-2">
             <h1 className="text-2xl font-bold text-foreground">
-              {isFreeUser ? "Plano Free ativo" : isStarterUser ? "Plano Starter ativo" : "Área protegida"}
+              {isStarterTier ? "Plano Starter ativo" : "Área protegida"}
             </h1>
             <p className="text-muted-foreground">
-              {isFreeUser
-                ? "No plano Free você tem acesso à calculadora de valores. Para liberar mais recursos, faça upgrade."
-                : isStarterUser
-                  ? "No plano Starter, o acesso fica restrito à calculadora de valores e ao pack de edição. Para liberar o restante da plataforma, faça upgrade para o Essential."
-                  : "Essa área está protegida pelo seu plano atual."}
+              {isStarterTier
+                ? "No Starter você visualiza recursos base. Para baixar marketplace, usar financeiro completo e liberar automações, faça upgrade."
+                : "Essa área está protegida pelo seu plano atual."}
             </p>
           </div>
           <div className="flex flex-col justify-center gap-3 sm:flex-row">
@@ -67,7 +64,7 @@ export function DashboardAccessGuard({ children }: { children: React.ReactNode }
                 Ir para calculadora
               </Button>
             </Link>
-            {isStarterUser && (
+            {isStarterTier && (
               <Link href="/dashboard/pack">
                 <Button variant="outline" className="border-border">
                   Abrir pack

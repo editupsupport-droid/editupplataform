@@ -1,4 +1,5 @@
-export type PlanId = "free" | "starter" | "essential"
+export type PlanId = "free" | "starter" | "essential" | "pro"
+export type SubscriptionStatus = "active" | "trialing" | "past_due" | "canceled" | "incomplete" | "none"
 export type JobStatus = "open" | "found" | "cancelled"
 
 export type ContactMethod = "phone" | "email" | "instagram"
@@ -46,6 +47,8 @@ export interface AppUser {
   email: string
   password: string
   plan: PlanId
+  subscriptionStatus?: SubscriptionStatus
+  creativeCloudRedeemAvailableUntil?: string
   createdAt: string
   monthlyRevenueGoal?: number
   appLanguage?: "pt" | "en" | "es"
@@ -98,14 +101,29 @@ export const DIRECT_LOGIN_EMAILS = [
 ] as const
 
 export const PLAN_LABELS: Record<PlanId, string> = {
-  free: "Free",
+  free: "Starter",
   starter: "Starter",
   essential: "Essential",
+  pro: "Pro",
 }
 
 const DASHBOARD_ACCESS_BY_PLAN: Record<PlanId, string[]> = {
-  free: ["/dashboard/calculadora", "/dashboard/planos", "/dashboard/configuracoes"],
+  free: [
+    "/dashboard",
+    "/dashboard/kanban",
+    "/dashboard/clientes",
+    "/dashboard/perfil",
+    "/dashboard/calculadora",
+    "/dashboard/pack",
+    "/dashboard/exchange",
+    "/dashboard/planos",
+    "/dashboard/configuracoes",
+  ],
   starter: [
+    "/dashboard",
+    "/dashboard/kanban",
+    "/dashboard/clientes",
+    "/dashboard/perfil",
     "/dashboard/calculadora",
     "/dashboard/pack",
     "/dashboard/exchange",
@@ -114,6 +132,7 @@ const DASHBOARD_ACCESS_BY_PLAN: Record<PlanId, string[]> = {
     "/dashboard/configuracoes",
   ],
   essential: ["/dashboard"],
+  pro: ["/dashboard"],
 }
 
 export const EDIT_TOOL_LABELS: Record<EditTool, string> = {
@@ -147,6 +166,7 @@ export const planMeets = (currentPlan: PlanId, requiredPlan: PlanId) => {
     free: 0,
     starter: 1,
     essential: 2,
+    pro: 3,
   }
 
   return levels[currentPlan] >= levels[requiredPlan]

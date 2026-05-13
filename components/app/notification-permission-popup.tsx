@@ -6,6 +6,7 @@ import { Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { useAppSession } from "@/components/app/app-provider"
+import { planMeets } from "@/lib/app-data"
 
 const DISMISS_KEY = "editup-notification-popup-disabled"
 const ASK_LATER_KEY = "editup-notification-popup-dismissed"
@@ -18,7 +19,7 @@ export function NotificationPermissionPopup() {
   useEffect(() => {
     if (typeof window === "undefined" || !("Notification" in window)) return
     if (!pathname.startsWith("/dashboard")) return
-    if (!currentUser || currentUser.plan !== "essential") return
+    if (!currentUser || !planMeets(currentUser.plan, "essential")) return
     if (window.localStorage.getItem(DISMISS_KEY) === "true") return
     if (Notification.permission === "granted" || Notification.permission === "denied") return
     if (window.localStorage.getItem(ASK_LATER_KEY) === "true") return

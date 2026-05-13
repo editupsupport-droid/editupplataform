@@ -33,6 +33,8 @@ type EditorPreview = {
   slug?: string
   contact_method?: string
   contact_value?: string
+  plan?: "free" | "starter" | "essential" | "pro"
+  logo_url?: string
 }
 
 export default function ApprovalPage() {
@@ -113,6 +115,8 @@ export default function ApprovalPage() {
     () => getExternalVideoEmbedUrl(task?.linkDrive ?? "") ?? "",
     [task?.linkDrive]
   )
+  const isStarterApproval = editor?.plan === "free" || editor?.plan === "starter" || !editor?.plan
+  const approvalLogo = editor?.plan === "pro" && editor.logo_url ? editor.logo_url : isStarterApproval ? "/logo.jpeg" : ""
 
   const downloadUrl = useMemo(() => {
     const rawLink = task?.linkDrive ?? ""
@@ -315,10 +319,14 @@ export default function ApprovalPage() {
       <div className="min-h-screen bg-background px-4 py-6">
       <div className="mx-auto mb-6 flex max-w-6xl items-center justify-between rounded-2xl border border-border bg-card/90 px-4 py-3">
         <div className="flex items-center gap-3">
-          <img src="/logo.jpeg" alt="EditUp" className="h-10 w-10 rounded-xl object-cover" />
+          {approvalLogo ? (
+            <img src={approvalLogo} alt={isStarterApproval ? "EditUp" : editor?.full_name ?? "Editor"} className="h-10 w-10 rounded-xl object-cover" />
+          ) : null}
           <div>
             <p className="text-sm font-semibold text-foreground">{editor?.full_name ?? "EditUp"}</p>
-            <p className="text-xs text-muted-foreground">Central profissional de entrega</p>
+            <p className="text-xs text-muted-foreground">
+              {isStarterApproval ? "Central profissional de entrega por EditUp" : "Central profissional de entrega"}
+            </p>
           </div>
         </div>
         <div className="hidden items-center gap-2 sm:flex">

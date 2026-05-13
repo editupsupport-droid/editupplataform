@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
+import { createClient } from "@supabase/supabase-js"
 import { z } from "zod"
-import { requireAuthenticatedUser } from "@/lib/supabase-server"
 
 export const runtime = "nodejs"
 const baseClientColumns = "id,user_id,name,phone,country_code,edit_level,average_duration,frequency,drive_link,created_at,updated_at"
@@ -37,6 +37,51 @@ const clientBodySchema = z.object({
 const clientDeleteSchema = z.object({
   id: z.string().uuid(),
 })
+
+const normalizeSupabaseUrl = (value?: string) => {
+  if (!value) return undefined
+
+  try {
+    const url = new URL(value.trim().replace(/^['"]|['"]$/g, ""))
+    return url.origin
+  } catch {
+    return value
+  }
+}
+
+const getSupabaseAdmin = () => {
+  const supabaseUrl = normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL)
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("Supabase admin não configurado.")
+  }
+
+  return createClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  })
+}
+
+const requireClientsUser = async (request: NextRequest) => {
+  const authorization = request.headers.get("authorization")
+
+  if (!authorization?.startsWith("Bearer ")) {
+    throw new Error("Não autenticado.")
+  }
+
+  const token = authorization.slice("Bearer ".length).trim()
+  const supabase = getSupabaseAdmin()
+  const { data, error } = await supabase.auth.getUser(token)
+
+  if (error || !data.user) {
+    throw new Error("Não autenticado.")
+  }
+
+  return { supabase, user: data.user }
+}
 
 const sanitizeOptionalPlainText = (value: string | null | undefined) =>
   value ? value.replace(/[\u0000-\u001f\u007f<>]/g, "").trim() : ""
@@ -126,7 +171,9 @@ const isMissingDriveFolderColumns = (message?: string | null) =>
     message.includes("column drive_folder_id") ||
     message.includes("column drive_folder_name"))
 
-const selectClientColumns = async (supabase: Awaited<ReturnType<typeof requireAuthenticatedUser>>["supabase"], userId: string) => {
+type ClientsSupabase = ReturnType<typeof getSupabaseAdmin>
+
+const selectClientColumns = async (supabase: ClientsSupabase, userId: string) => {
   const preferred = await supabase
     .from("clients")
     .select(driveClientColumns)
@@ -159,7 +206,7 @@ const saveClientRecord = async ({
   userId,
   body,
 }: {
-  supabase: Awaited<ReturnType<typeof requireAuthenticatedUser>>["supabase"]
+  supabase: ClientsSupabase
   userId: string
   body: z.infer<typeof clientBodySchema>
 }) => {
@@ -206,9 +253,9 @@ const saveClientRecord = async ({
 
 export async function GET(request: NextRequest) {
   try {
-    let auth: Awaited<ReturnType<typeof requireAuthenticatedUser>>
+    let auth: Awaited<ReturnType<typeof requireClientsUser>>
     try {
-      auth = await requireAuthenticatedUser(request)
+      auth = await requireClientsUser(request)
     } catch (error) {
       return clientRouteError("auth", error)
     }
@@ -232,7 +279,7 @@ export async function POST(request: NextRequest) {
     const rateLimitError = enforceRateLimit(request, "clients:post", 80)
     if (rateLimitError) return rateLimitError
 
-    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { supabase, user } = await requireClientsUser(request)
     const body = clientBodySchema.parse((await request.json()) as ClientBody)
 
     if (body.driveLink && !isSafeHttpUrl(body.driveLink)) {
@@ -270,7 +317,7 @@ export async function DELETE(request: NextRequest) {
     const rateLimitError = enforceRateLimit(request, "clients:delete", 60)
     if (rateLimitError) return rateLimitError
 
-    const { supabase, user } = await requireAuthenticatedUser(request)
+    const { supabase, user } = await requireClientsUser(request)
     const { id } = clientDeleteSchema.parse(await request.json())
 
     const { data, error } = await supabase

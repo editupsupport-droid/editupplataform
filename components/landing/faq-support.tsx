@@ -1,65 +1,94 @@
+"use client"
+
 import Link from "next/link"
+import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { CalendarDays, Mail, PlayCircle } from "lucide-react"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+
+const faqs = [
+  {
+    question: "A EditUp substitui meu WhatsApp?",
+    answer: "Não. Ela organiza o que o WhatsApp não consegue: status, aprovação, arquivos, orçamento e histórico. Você ainda pode conversar com o cliente, mas sem depender do chat como sistema.",
+  },
+  {
+    question: "Consigo começar sem pagar?",
+    answer: "Sim. O Starter é gratuito para você organizar o básico, criar clientes, usar agenda e testar a página profissional.",
+  },
+  {
+    question: "O que muda no Essential?",
+    answer: "O Essential libera CRM, financeiro, downloads no marketplace, Drive e aprovação sem marca EditUp. É o plano recomendado para operar com clientes reais.",
+  },
+  {
+    question: "O cliente precisa criar conta para aprovar?",
+    answer: "Não. Ele acessa um link limpo de aprovação, assiste ao vídeo, comenta por tempo e aprova ou pede ajustes.",
+  },
+  {
+    question: "E se eu atrasar o pagamento?",
+    answer: "O acesso pago é controlado pela assinatura. Se o pagamento deixar de ficar ativo, o sistema rebaixa para Starter até a regularização.",
+  },
+]
 
 export function FaqSupport() {
   return (
-    <section id="faq" className="bg-[#f7f7f5] px-5 py-16 text-[#171717] sm:px-8 lg:px-10">
-      <div className="mx-auto max-w-[1080px]">
-        <h2 className="max-w-2xl text-4xl font-black leading-[0.98] tracking-[-0.065em] sm:text-5xl">
-          Preferido pelas equipes de sucesso.
-        </h2>
-
-        <div className="mt-8 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="rounded-2xl border border-[#e5e1dc] bg-white p-6">
-            <p className="text-2xl font-black leading-tight tracking-[-0.055em]">
-              “Hoje a EditUp coloca proposta, cliente, entrega e aprovação no mesmo lugar. O trabalho fica mais leve.”
+    <section id="faq" className="bg-[#f9fafb] px-4 py-20 sm:px-6">
+      <div className="mx-auto max-w-6xl">
+        <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
+          <motion.div
+            initial={{ opacity: 0, y: 22 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.42 }}
+          >
+            <p className="text-sm font-semibold text-[#0022fe]">Objeções quebradas</p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-[-0.02em] text-[#050505] sm:text-5xl">
+              Dúvidas antes de começar?
+            </h2>
+            <p className="mt-4 text-base leading-7 text-[#6b7280]">
+              Respostas diretas para você decidir sem fricção.
             </p>
-            <p className="mt-6 text-sm font-bold text-[#666]">Murilo, editor de vídeo</p>
-          </div>
-          <div className="overflow-hidden rounded-2xl border border-[#e5e1dc] bg-[#171717] p-5 text-white">
-            <div className="flex h-52 items-center justify-center rounded-xl bg-[radial-gradient(circle_at_50%_30%,rgba(255,255,255,0.18),transparent_30%),#222]">
-              <PlayCircle className="h-16 w-16 text-white/80" />
-            </div>
-          </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 22 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.42, delay: 0.08 }}
+            className="rounded-2xl border border-[#e5e7eb] bg-white p-2"
+          >
+            <Accordion type="single" collapsible className="w-full">
+              {faqs.map((faq, index) => (
+                <AccordionItem key={faq.question} value={`item-${index}`} className="border-[#e5e7eb] px-4">
+                  <AccordionTrigger className="text-left text-base font-semibold tracking-[-0.02em] text-[#111827] hover:no-underline">
+                    {faq.question}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-sm leading-7 text-[#6b7280]">
+                    {faq.answer}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </motion.div>
         </div>
 
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">
-          {["Mais clareza para vender", "Menos cobrança no WhatsApp", "Entrega com cara profissional"].map((item) => (
-            <div key={item} className="rounded-2xl border border-[#e5e1dc] bg-white p-5 text-sm font-bold">
-              {item}
-              <p className="mt-2 text-sm font-medium leading-6 text-[#666]">Fluxos simples, mas com profundidade suficiente para operação real.</p>
-            </div>
-          ))}
-        </div>
-
-        <h2 className="mt-16 max-w-xl text-4xl font-black leading-[0.98] tracking-[-0.065em] sm:text-5xl">
-          Teste gratuitamente.
-        </h2>
-
-        <div className="mt-8 grid gap-4 lg:grid-cols-2">
-          <div className="rounded-2xl border border-[#e5e1dc] bg-white p-6">
-            <Mail className="h-7 w-7" />
-            <h3 className="mt-6 text-2xl font-black tracking-[-0.055em]">Comece a usar a EditUp</h3>
-            <p className="mt-3 text-sm font-medium leading-6 text-[#666]">Crie sua conta, entre no dashboard e teste o fluxo principal antes de assinar.</p>
-            <Link href="/cadastro" className="mt-7 inline-flex">
-              <Button className="rounded-xl bg-[#171717] px-6 font-bold text-white hover:bg-[#0022fe]">
-                Criar conta grátis
-              </Button>
-            </Link>
-          </div>
-
-          <div className="rounded-2xl border border-[#e5e1dc] bg-white p-6">
-            <CalendarDays className="h-7 w-7" />
-            <h3 className="mt-6 text-2xl font-black tracking-[-0.055em]">Solicite uma demonstração</h3>
-            <p className="mt-3 text-sm font-medium leading-6 text-[#666]">Quer validar o fluxo antes de lançar para clientes? Fale com o suporte.</p>
-            <a href="mailto:editupsupport@gmail.com" className="mt-7 inline-flex">
-              <Button variant="outline" className="rounded-xl border-[#171717] px-6 font-bold text-[#171717] hover:bg-[#171717] hover:text-white">
-                Falar com suporte
-              </Button>
-            </a>
-          </div>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 22 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.42 }}
+          className="mt-16 rounded-3xl border border-[#1f2937] bg-[#050505] p-8 text-center text-white sm:p-12"
+        >
+          <h2 className="mx-auto max-w-2xl text-3xl font-semibold tracking-[-0.02em] sm:text-5xl">
+            Pronto para parar de gerenciar cliente no improviso?
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-white/68">
+            Crie sua conta grátis e monte sua primeira operação em poucos minutos.
+          </p>
+          <Link href="/cadastro" className="mt-8 inline-flex">
+            <Button className="h-12 rounded-lg bg-[#0022fe] px-6 text-base font-semibold text-white hover:bg-[#2444ff]">
+              Começar agora - grátis
+            </Button>
+          </Link>
+        </motion.div>
       </div>
     </section>
   )

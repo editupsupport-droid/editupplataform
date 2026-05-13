@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { enforceApiRateLimit, ensureSameOrigin, requireAdminAuthenticatedUser, sanitizePlainText } from "@/lib/api-admin"
 import { createDriveFolderShortcut } from "@/lib/google-drive"
+import { planMeets, type PlanId } from "@/lib/app-data"
 
 export const runtime = "nodejs"
 
@@ -18,6 +19,15 @@ export async function POST(request: NextRequest) {
 
     const { supabase, user } = await requireAdminAuthenticatedUser(request)
     const body = schema.parse(await request.json())
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("plan")
+      .eq("id", user.id)
+      .maybeSingle()
+
+    if (!planMeets((profile?.plan as PlanId | undefined) ?? "free", "essential")) {
+      return NextResponse.json({ error: "Download disponível a partir do plano Essential." }, { status: 403 })
+    }
 
     const { data: resource, error } = await supabase
       .from("community_resources")

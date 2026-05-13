@@ -12,6 +12,7 @@ import {
   getCachedWorkspaceTasks,
   subscribeWorkspaceSync,
 } from "@/lib/workspace-db"
+import { planMeets } from "@/lib/app-data"
 import { cn } from "@/lib/utils"
 
 const STORAGE_KEY = "editup-essential-onboarding"
@@ -48,7 +49,7 @@ export function FreeTrialTasksWidget() {
   }
 
   useEffect(() => {
-    if (!currentUser || currentUser.plan !== "essential") return
+    if (!currentUser || !planMeets(currentUser.plan, "essential")) return
 
     const next = [...completedIds]
     const add = (id: string) => {
@@ -85,7 +86,7 @@ export function FreeTrialTasksWidget() {
     [completedIds]
   )
 
-  if (!currentUser || currentUser.plan !== "essential") return null
+  if (!currentUser || !planMeets(currentUser.plan, "essential")) return null
 
   const completedCount = tasks.filter((task) => task.completed).length
 

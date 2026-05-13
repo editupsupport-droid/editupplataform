@@ -34,7 +34,7 @@ const columnChecks = [
   {
     table: "profiles",
     columns:
-      "id,email,full_name,professional_title,bio,location,slug,banner_url,video_url,edit_tools,video_styles,contact_method,contact_value,plan,can_publish_jobs,monthly_revenue_goal,app_language,appearance_theme,account_name,account_photo_url,quote_form_config,created_at,updated_at",
+      "id,email,full_name,professional_title,bio,location,slug,banner_url,video_url,edit_tools,video_styles,contact_method,contact_value,plan,subscription_tier,subscription_status,creative_cloud_redeem_available_until,can_publish_jobs,monthly_revenue_goal,app_language,appearance_theme,account_name,account_photo_url,quote_form_config,created_at,updated_at",
   },
   {
     table: "board_cards",

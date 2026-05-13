@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   Bell,
   Brush,
@@ -88,7 +88,7 @@ const sectionGroups: Array<{
       { id: "appearance", label: "Aparência", icon: Palette, keywords: "tema cores light discord midnight forest cyberpunk" },
       { id: "accessibility", label: "Acessibilidade", icon: SlidersHorizontal, keywords: "fonte movimento saturação leitor tela aria" },
       { id: "language-time", label: "Idioma e hora", icon: Globe2, keywords: "idioma tempo language time 12 24 auto" },
-      { id: "plans", label: "Planos", icon: CreditCard, keywords: "plano billing transações pagamento" },
+      { id: "plans", label: "Minha Assinatura", icon: CreditCard, keywords: "plano assinatura billing transações pagamento creative cloud adobe" },
       { id: "logout", label: "Sair", icon: LogOut, keywords: "sair logout sessão desconectar" },
     ],
   },
@@ -96,6 +96,7 @@ const sectionGroups: Array<{
 
 export default function ConfiguracoesPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { currentUser, logoutUser, refreshCurrentUser } = useAppSession()
   const { language, setLanguage, setTheme } = useAppPreferences()
   const [activeSection, setActiveSection] = useState<SettingsSection>("account")
@@ -123,6 +124,13 @@ export default function ConfiguracoesPage() {
     marketing: false,
     browserPrompt: true,
   })
+
+  useEffect(() => {
+    const section = searchParams.get("section")
+    if (section === "plans") {
+      setActiveSection("plans")
+    }
+  }, [searchParams])
 
   const loadDriveStatus = async () => {
     const response = await authFetch("/api/google-drive/status")
@@ -220,6 +228,13 @@ export default function ConfiguracoesPage() {
   const displayName = accountName || currentUser?.name || "Editor"
   const photoUrl = accountPhotoUrl.trim()
   const planLabel = currentUser ? PLAN_LABELS[currentUser.plan] : "Free"
+  const creativeCloudRedeemExpiresAt = currentUser?.creativeCloudRedeemAvailableUntil ? new Date(currentUser.creativeCloudRedeemAvailableUntil) : null
+  const canRedeemCreativeCloud = Boolean(
+    currentUser?.plan === "pro" &&
+    currentUser.subscriptionStatus === "active" &&
+    creativeCloudRedeemExpiresAt &&
+    creativeCloudRedeemExpiresAt.getTime() > Date.now()
+  )
 
   const handleSaveAccount = async () => {
     setAccountSaving(true)
@@ -664,8 +679,8 @@ export default function ConfiguracoesPage() {
           {activeSection === "plans" && (
             <Card className="border-border bg-card">
               <CardHeader>
-                <CardTitle>Planos</CardTitle>
-                <CardDescription>Plano atual e histórico de transações.</CardDescription>
+                <CardTitle>Minha Assinatura</CardTitle>
+                <CardDescription>Plano atual, benefícios externos e histórico de transações.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="inline-flex rounded-lg border border-border bg-background p-1">
@@ -673,12 +688,40 @@ export default function ConfiguracoesPage() {
                   <button type="button" onClick={() => setPlansTab("history")} className={cn("rounded-md px-3 py-2 text-sm", plansTab === "history" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>Histórico de transações</button>
                 </div>
                 {plansTab === "manage" ? (
-                  <div className="flex items-center justify-between rounded-lg border border-border bg-background p-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Plano atual</p>
-                      <p className="text-xl font-semibold text-foreground">{planLabel}</p>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between rounded-lg border border-border bg-background p-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Plano atual</p>
+                        <p className="text-xl font-semibold text-foreground">{planLabel}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Status: {currentUser?.subscriptionStatus === "active" ? "assinatura ativa" : currentUser?.subscriptionStatus ?? "sem assinatura ativa"}</p>
+                      </div>
+                      <Button onClick={() => router.push("/dashboard/planos")}>Gerenciar plano</Button>
                     </div>
-                    <Button onClick={() => router.push("/dashboard/planos")}>Gerenciar plano</Button>
+                    <div className="rounded-xl border border-border bg-background p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">Creative Cloud Pro</p>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {currentUser?.plan === "pro"
+                              ? "Seu benefício Pro fica disponível para resgate por 3 dias após a compra."
+                              : "Disponível apenas para usuários do plano Pro com pagamento ativo."}
+                          </p>
+                        </div>
+                        <span className={`rounded-full px-3 py-1 text-xs font-medium ${canRedeemCreativeCloud ? "bg-emerald-500/10 text-emerald-500" : "bg-secondary text-muted-foreground"}`}>
+                          {canRedeemCreativeCloud ? "Disponível" : "Bloqueado"}
+                        </span>
+                      </div>
+                      <div className="mt-4 rounded-lg border border-dashed border-border bg-card p-4 text-sm text-muted-foreground">
+                        <p className="font-medium text-foreground">Instruções de ativação</p>
+                        <p className="mt-2">1. Clique em resgatar acesso. 2. O suporte recebe sua solicitação. 3. Você recebe o convite de ativação no e-mail da conta.</p>
+                        {creativeCloudRedeemExpiresAt && (
+                          <p className="mt-2">Prazo de resgate: {creativeCloudRedeemExpiresAt.toLocaleDateString("pt-BR")}.</p>
+                        )}
+                      </div>
+                      <Button className="mt-4" disabled={!canRedeemCreativeCloud} onClick={() => window.open("mailto:editupsupport@gmail.com?subject=Resgate%20Creative%20Cloud%20Pro%20EditUp", "_blank")}>
+                        Resgatar acesso
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <div className="rounded-lg border border-dashed border-border bg-background p-6 text-sm text-muted-foreground">Nenhuma transação encontrada ainda.</div>
